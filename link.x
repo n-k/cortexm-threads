@@ -33,6 +33,7 @@ SECTIONS
 	{
 		_sbss = .;
 		*(.bss)
+    *(.bss.*)
 		_ebss = .;
 	} >RAM
 
