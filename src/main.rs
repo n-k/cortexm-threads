@@ -6,7 +6,7 @@
 use core::panic::PanicInfo;
 use cortex_m_semihosting::{debug, hprintln};
 
-// extern defs
+// extern defs, from link.x or asm.s
 extern "C" {
     fn _estack();
     fn activate(stack: &u32);
@@ -67,7 +67,7 @@ pub static EXCEPTIONS: [Vector; 16] = [
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector { handler: DefaultExceptionHandler },
-    Vector { handler: DefaultExceptionHandler },
+    Vector { handler: DefaultExceptionHandler }, // systick
 ];
 
 #[no_mangle]
