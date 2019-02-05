@@ -16,8 +16,6 @@ SECTIONS
     KEEP(*(.usertask.*))
 		*(.rodata)
     *(.rodata.*)
-		_sromdev = .;
-		_eromdev = .;
 		_sidata = .;
 	} >FLASH
 
