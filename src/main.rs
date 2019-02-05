@@ -4,30 +4,29 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use core::ptr;
-
 use cortex_m_semihosting::{debug, hprintln};
+
+// extern defs
+extern "C" {
+    fn _estack();
+    fn activate(stack: &u32);
+}
 
 // The reset handler
 #[no_mangle]
-pub unsafe extern "C" fn Reset() -> ! {
+pub unsafe extern "C" fn Reset() {
     _main();
 }
 
 fn _main() -> ! {
-    extern "C" {
-        fn activate(stack: &u32);
-    }
     let _ = hprintln!("entered _main");
-
     let mut usertask_stack: [u32; 256] = [0; 256];
     unsafe {
         for idx in 0..256 {
             usertask_stack[idx] = idx as u32;
         }
-        let _user_task_addr: usize = core::intrinsics::transmute(&UserTask1);
         let _user_task_addr_u32: u32 = core::intrinsics::transmute(&UserTask1);
-        usertask_stack[248] = core::intrinsics::transmute(&UserTask1);
+        usertask_stack[248] = 17;//_user_task_addr_u32
         activate(&usertask_stack[240]);
     }
 
@@ -35,17 +34,13 @@ fn _main() -> ! {
     loop {}
 }
 
+#[link_section = ".usertask"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask1() -> ! {
     let _ = hprintln!("entered user task");
     debug::exit(debug::EXIT_SUCCESS);
     loop {}
 }
-
-// The reset vector, a pointer into the reset handler
-#[link_section = ".vector_table.reset_vector"]
-#[no_mangle]
-pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
 
 #[panic_handler]
 fn panic(_panic: &PanicInfo<'_>) -> ! {
@@ -58,49 +53,23 @@ pub union Vector {
     handler: unsafe extern "C" fn(),
 }
 
-extern "C" {
-    fn NMI();
-    fn HardFaultTrampoline();
-    fn MemManage();
-    fn BusFault();
-    fn UsageFault();
-    fn SVCall();
-    fn PendSV();
-    fn SysTick();
-}
-
-#[link_section = ".vector_table.exceptions"]
+#[link_section = ".isr_vector"]
 #[no_mangle]
-pub static EXCEPTIONS: [Vector; 14] = [
+pub static EXCEPTIONS: [Vector; 4] = [
+    Vector { handler: _estack },
+    Vector { handler: Reset },
     Vector { handler: NMI },
-    Vector {
-        handler: HardFaultTrampoline,
-    },
-    Vector { handler: MemManage },
-    Vector { handler: BusFault },
-    Vector {
-        handler: UsageFault,
-    },
-    Vector { reserved: 0 },
-    Vector { reserved: 0 },
-    Vector { reserved: 0 },
-    Vector { reserved: 0 },
-    Vector { handler: SVCall },
-    Vector { reserved: 0 },
-    Vector { reserved: 0 },
-    Vector { handler: PendSV },
-    Vector { handler: SysTick },
+    Vector { handler: HardFault },
 ];
 
 #[no_mangle]
-pub extern "C" fn DefaultExceptionHandler() {
-    let _ = hprintln!("Default handler!");
+pub extern "C" fn NMI() {
+    let _ = hprintln!("!!!NMI!!!");
     loop {}
 }
 
 #[no_mangle]
-pub fn HardFault(_ef: *const u32) -> ! {
-    let _ = hprintln!("!!!Hard fault!!!, _ef: {:?}", _ef);
-
+pub extern "C" fn HardFault() {
+    let _ = hprintln!("!!!Hard fault!!!");
     loop {}
 }
