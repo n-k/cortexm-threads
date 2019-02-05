@@ -22,9 +22,7 @@ extern "C" {
     static _sidata: u8;
 }
 
-const HANDLER_MSP   : u32 = 0xFFFFFFF1;
-const THREAD_MSP    : u32 = 0xFFFFFFF9;
-const THREAD_PSP    : u32 = 0xFFFFFFFD;
+const THREAD_PSP: u32 = 0xFFFFFFFD;
 
 #[no_mangle]
 pub unsafe extern "C" fn Reset() {
@@ -35,10 +33,8 @@ pub unsafe extern "C" fn Reset() {
     ptr::copy_nonoverlapping(&_sidata as *const u8, &mut _sdata as *mut u8, count);
 
     let init_area: [u32; 32] = [0; 32];
-    unsafe {
-        let _init_addr: u32 = core::intrinsics::transmute(&init_area[31]);
-        init_activate_env(_init_addr + 4);
-    }
+    let _init_addr: u32 = core::intrinsics::transmute(&init_area[31]);
+    init_activate_env(_init_addr + 4);
     let _ = hprintln!("inited threads");
 
     let p = cortex_m::Peripherals::take().unwrap();
@@ -49,7 +45,7 @@ pub unsafe extern "C" fn Reset() {
     syst.set_reload(12_000_000);
     syst.enable_counter();
     syst.enable_interrupt();
-    
+
     let _ = hprintln!("finished init");
     main();
 }
@@ -61,12 +57,12 @@ unsafe fn main() -> ! {
     let mut usertask_stack2: [u32; 256] = [0; 256];
     let mut stack_pointers: [&u32; 2] = [
         create_task(&mut usertask_stack1, UserTask1),
-        create_task(&mut usertask_stack2, UserTask2)
+        create_task(&mut usertask_stack2, UserTask2),
     ];
 
     let _ = hprintln!("starting round-robin scheduler");
     let mut idx: usize = 0;
-    for i in 1..5 {
+    for _i in 1..5 {
         stack_pointers[idx] = activate(stack_pointers[idx]);
         let _ = hprintln!("back in main");
         idx = if idx == 1 { 0 } else { idx + 1 };
@@ -90,7 +86,7 @@ pub unsafe extern "C" fn UserTask1() -> ! {
     syscall();
     loop {
         let _ = hprintln!("in user task 1 !!");
-        for i in 1..500000 {
+        for _i in 1..500000 {
             cortex_m::asm::nop();
         }
     }
@@ -102,7 +98,7 @@ pub unsafe extern "C" fn UserTask2() -> ! {
     syscall();
     loop {
         let _ = hprintln!("in user task 2 !!");
-        for i in 1..500000 {
+        for _i in 1..500000 {
             cortex_m::asm::nop();
         }
     }
@@ -124,20 +120,34 @@ pub union Vector {
 pub static EXCEPTIONS: [Vector; 16] = [
     Vector { handler: _estack },
     Vector { handler: Reset },
-    Vector { handler: DefaultExceptionHandler }, // nmi
+    Vector {
+        handler: DefaultExceptionHandler,
+    }, // nmi
     Vector { handler: HardFault },
-    Vector { handler: DefaultExceptionHandler }, // mem manage
-    Vector { handler: DefaultExceptionHandler }, // bus fault
-    Vector { handler: DefaultExceptionHandler }, // usage fault
+    Vector {
+        handler: DefaultExceptionHandler,
+    }, // mem manage
+    Vector {
+        handler: DefaultExceptionHandler,
+    }, // bus fault
+    Vector {
+        handler: DefaultExceptionHandler,
+    }, // usage fault
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector { reserved: 0 },
-    Vector { handler: svc_handler }, // SVC
+    Vector {
+        handler: svc_handler,
+    }, // SVC
     Vector { reserved: 0 },
     Vector { reserved: 0 },
-    Vector { handler: DefaultExceptionHandler }, // pendsv
-    Vector { handler: systick_handler }, // systick
+    Vector {
+        handler: DefaultExceptionHandler,
+    }, // pendsv
+    Vector {
+        handler: systick_handler,
+    }, // systick
 ];
 
 #[no_mangle]

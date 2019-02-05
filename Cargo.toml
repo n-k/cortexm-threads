@@ -1,5 +1,5 @@
 [package]
-name = "cortex-m0-threads"
+name = "cortexm-threads"
 version = "0.1.0"
 authors = ["nk"]
 edition = "2018"

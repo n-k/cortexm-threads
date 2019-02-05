@@ -35,7 +35,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cortex-m0-threads"
+name = "cortexm-threads"
 version = "0.1.0"
 dependencies = [
  "cc 1.0.28 (registry+https://github.com/rust-lang/crates.io-index)",

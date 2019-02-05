@@ -6,4 +6,4 @@ qemu-system-arm \
       -S \
       -nographic \
       -semihosting-config enable=on,target=native \
-      -kernel target/thumbv7m-none-eabi/debug/cortex-m0-threads
+      -kernel target/thumbv7m-none-eabi/debug/cortexm-threads

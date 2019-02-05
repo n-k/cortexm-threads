@@ -9,7 +9,7 @@
             "type": "gdb",
             "request": "launch",
             "cwd": "${workspaceRoot}",
-            "target": "${workspaceRoot}/target/thumbv7m-none-eabi/debug/cortex-m0-threads", 
+            "target": "${workspaceRoot}/target/thumbv7m-none-eabi/debug/cortexm-threads", 
             "gdbpath" : "gdb-multiarch",
             "autorun": [
                 "target remote :3333",
