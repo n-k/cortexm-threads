@@ -22,11 +22,7 @@ fn _main() -> ! {
     let _ = hprintln!("entered _main");
     let mut usertask_stack: [u32; 256] = [0; 256];
     unsafe {
-        for idx in 0..256 {
-            usertask_stack[idx] = idx as u32;
-        }
-        let _user_task_addr_u32: u32 = core::intrinsics::transmute(&UserTask1);
-        usertask_stack[248] = 17;//_user_task_addr_u32
+        usertask_stack[248] = core::intrinsics::transmute(UserTask1 as *const fn());
         activate(&usertask_stack[240]);
     }
 
@@ -34,7 +30,7 @@ fn _main() -> ! {
     loop {}
 }
 
-#[link_section = ".usertask"]
+#[link_section = ".usertask.task1"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask1() -> ! {
     let _ = hprintln!("entered user task");
@@ -55,16 +51,28 @@ pub union Vector {
 
 #[link_section = ".isr_vector"]
 #[no_mangle]
-pub static EXCEPTIONS: [Vector; 4] = [
+pub static EXCEPTIONS: [Vector; 16] = [
     Vector { handler: _estack },
     Vector { handler: Reset },
-    Vector { handler: NMI },
+    Vector { handler: DefaultExceptionHandler },
     Vector { handler: HardFault },
+    Vector { handler: DefaultExceptionHandler },
+    Vector { handler: DefaultExceptionHandler },
+    Vector { handler: DefaultExceptionHandler },
+    Vector { reserved: 0 },
+    Vector { reserved: 0 },
+    Vector { reserved: 0 },
+    Vector { reserved: 0 },
+    Vector { handler: DefaultExceptionHandler },
+    Vector { reserved: 0 },
+    Vector { reserved: 0 },
+    Vector { handler: DefaultExceptionHandler },
+    Vector { handler: DefaultExceptionHandler },
 ];
 
 #[no_mangle]
-pub extern "C" fn NMI() {
-    let _ = hprintln!("!!!NMI!!!");
+pub extern "C" fn DefaultExceptionHandler() {
+    let _ = hprintln!("Default handler!");
     loop {}
 }
 

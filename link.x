@@ -11,9 +11,9 @@ SECTIONS
 	.text :
 	{
 		KEEP(*(.isr_vector))
-    KEEP(*(.usertask))
 		*(.text)
 		*(.text.*)
+    KEEP(*(.usertask.*))
 		*(.rodata)
     *(.rodata.*)
 		_sromdev = .;
