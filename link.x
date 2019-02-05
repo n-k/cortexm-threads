@@ -56,6 +56,7 @@ SECTIONS
   {
     *(.ARM.exidx.*);
   }
+
 }
 
 PROVIDE(NMI = DefaultExceptionHandler);
