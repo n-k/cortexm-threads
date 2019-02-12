@@ -1,54 +1,28 @@
 .thumb
 .syntax unified
 
-.type svc_handler, %function
-.global svc_handler
-.type systick_handler, %function
-.global systick_handler
-svc_handler:
-systick_handler:
-	/* save user state */
-	mrs r0, psp
-	stmdb r0!, {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+.global __OS_PTR
 
-	/* load kernel state */
-	pop {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
-	msr psr_nzcvq, ip
 
-	bx lr
-
-.global activate
+.global PendSVHandler
 .thumb_func
-activate:
-	/* save kernel state */
-	mrs ip, psr
-	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
-
-	/* load user state */
-	ldmia r0!, {r4, r5, r6, r7, r8, r9, r10, r11, lr}
-
-	msr psp, r0
-
-	/* jump to user task */
+PendSVHandler:
+	cpsid	i
+	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
+	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
+	ldr		r1,	[r1, 0x0] /* r1 = OS_PTR.curr ( &current_thread ) */
+	cbz		r1,	__PENDSV_RESTORE
+	push	{r4-r11}
+	str		sp, [r1, 0x0] /* current_thread.sp = sp */
+	__PENDSV_RESTORE:
+	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
+	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
+	ldr 	r2, [r1, 0x4] /* r2 = OS_PTR.next */
+	ldr 	sp, [r2, 0x0] /* sp = OS_PTR.next.sp */
+	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
+	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
+	ldr		r2,	[r1, 0x4] /* r1 = &OS.curr */
+	str		r2,	[r1, 0x0] /* set OS.curr = os.next */
+	pop		{r4-r11} /* popped regs */
+	cpsie	i
 	bx lr
-
-.global init_activate_env
-.thumb_func
-init_activate_env:
-	/* save kernel state */
-	mrs ip, psr
-	push {r4, r5, r6, r7, r8, r9, r10, r11, ip, lr}
-
-	/* switch to process stack */
-	msr psp, r0
-	mov r0, #3
-	msr control, r0
-	isb
-	svc 0
-	bx lr
-
-
-.global syscall
-.thumb_func
-syscall:
-	svc 0
