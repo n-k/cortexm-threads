@@ -2,62 +2,11 @@
 #![no_std]
 #![no_main]
 
-#![feature(asm)]
-
 use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-/* RTOS */
-
-#[no_mangle]
-static mut __OS_PTR: u32 = 0;
-
-#[repr(C)]
-pub struct OS {
-    curr: u32,
-    next: u32,
-    _idx: usize,
-    threads: [OSThread; 2],
-}
-
-#[repr(C)]
-pub struct OSThread {
-    sp: u32,
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn tick() {
-    if __OS_PTR != 0 {
-        let os: &mut OS = &mut *(__OS_PTR as *mut OS);
-        let mut pend_sv = false;
-        if os.curr == os.next {
-            let _ = hprintln!("curr == next");
-            // schedule a thread to be run
-            os.next = core::intrinsics::transmute(&os.threads[os._idx]);
-            os._idx = os._idx + 1;
-            if os._idx > os.threads.len() - 1 {
-                os._idx = 0;
-            }
-        }
-        if os.curr != os.next {
-            let pend = ptr::read_volatile(0xE000ED04 as *const u32);
-            ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
-        }
-    }
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn SystickHandler() {
-    let _ = hprintln!("Systick handler!");
-    tick();
-}
-
-extern "C" {
-    fn PendSVHandler();
-}
-
-/* END RTOS */
+use cortexm_threads::{OS, OSThread, tick, init, PendSVHandler};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -141,21 +90,14 @@ unsafe fn main() -> ! {
     let _ = hprintln!("threads: 0x{:x} 0x{:x}", _t1_addr, _t2_addr);
     let _ = hprintln!("threads: {} {}", _t1_addr, _t2_addr);
 
-    let os: OS = OS {
-        curr: 0,
-        next: 0,
-        _idx: 0,
-        threads: [
+    init([
             OSThread {
                 sp: core::intrinsics::transmute(&stack1[240]),
             },
             OSThread {
                 sp: core::intrinsics::transmute(&stack2[240]),
             },
-        ],
-    };
-    __OS_PTR = core::intrinsics::transmute(&os);
-    let _ = hprintln!("OS @ : 0x{:x} 0x{:?}", __OS_PTR, __OS_PTR);
+        ]);
     // debug::exit(debug::EXIT_SUCCESS);
     loop {
         for _i in 1..500000 {
@@ -232,6 +174,12 @@ pub static EXCEPTIONS: [Vector; 16] = [
         handler: SystickHandler,
     }, // systick
 ];
+
+#[no_mangle]
+pub unsafe extern "C" fn SystickHandler() {
+    let _ = hprintln!("Systick Handler!");
+    tick();
+}
 
 #[no_mangle]
 pub extern "C" fn DefaultExceptionHandler() {
