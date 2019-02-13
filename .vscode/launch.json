@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "GDB",
+            "name": "lm3s6965evb - GDB",
             "type": "gdb",
             "request": "launch",
-            "cwd": "${workspaceRoot}",
-            "target": "${workspaceRoot}/target/thumbv7m-none-eabi/debug/cortexm-threads", 
+            "cwd": "${workspaceRoot}/example_crates/lm3s6965evb",
+            "target": "${workspaceRoot}/example_crates/lm3s6965evb/target/thumbv7m-none-eabi/debug/lm3s6965evb", 
             "gdbpath" : "gdb-multiarch",
             "autorun": [
                 "target remote :3333",

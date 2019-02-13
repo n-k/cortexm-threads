@@ -13,7 +13,6 @@ SECTIONS
 		KEEP(*(.isr_vector))
 		*(.text)
 		*(.text.*)
-    KEEP(*(.usertask.*))
 		*(.rodata)
     *(.rodata.*)
 		_sidata = .;

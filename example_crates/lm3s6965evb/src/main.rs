@@ -6,14 +6,11 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
+use cortexm_threads::{ThreadControlBlock, tick, init, PendSVHandler};
+
 // extern defs, from link.x or asm.s
 extern "C" {
     fn _estack();
-    fn activate(stack: &u32) -> &'static u32;
-    fn init_activate_env(stack: u32) -> &'static u32;
-    fn systick_handler();
-    fn svc_handler();
-    fn syscall();
     // markers for regions
     static mut _sbss: u8;
     static mut _ebss: u8;
@@ -21,8 +18,6 @@ extern "C" {
     static mut _edata: u8;
     static _sidata: u8;
 }
-
-const THREAD_PSP: u32 = 0xFFFFFFFD;
 
 #[no_mangle]
 pub unsafe extern "C" fn Reset() {
@@ -32,11 +27,6 @@ pub unsafe extern "C" fn Reset() {
     let count = &_edata as *const u8 as usize - &_sdata as *const u8 as usize;
     ptr::copy_nonoverlapping(&_sidata as *const u8, &mut _sdata as *mut u8, count);
 
-    let init_area: [u32; 32] = [0; 32];
-    let _init_addr: u32 = core::intrinsics::transmute(&init_area[31]);
-    init_activate_env(_init_addr + 4);
-    let _ = hprintln!("inited threads");
-
     let p = cortex_m::Peripherals::take().unwrap();
     let mut syst = p.SYST;
     // configures the system timer to trigger a SysTick exception every second
@@ -45,6 +35,8 @@ pub unsafe extern "C" fn Reset() {
     syst.set_reload(12_000_000);
     syst.enable_counter();
     syst.enable_interrupt();
+    // set pendsv as low priority
+    ptr::write_volatile(0xE000ED20 as *mut u32, 0xFF << 16);
 
     let _ = hprintln!("finished init");
     main();
@@ -52,38 +44,71 @@ pub unsafe extern "C" fn Reset() {
 
 unsafe fn main() -> ! {
     let _ = hprintln!("entered _main");
+    let mut stack1: [u32; 256] = [0xDEADBEEF; 256];
+    stack1[255] = 1 << 24;
+    stack1[254] = core::intrinsics::transmute(UserTask1 as *const fn());
+    stack1[253] = 0x0000000E;
+    stack1[252] = 0x0000000C;
+    stack1[251] = 0x00000003;
+    stack1[250] = 0x00000002;
+    stack1[249] = 0x00000001;
+    stack1[248] = 0x00000000;
+    // aditional regs
+    stack1[247] = 0x0000000B;
+    stack1[246] = 0x0000000A;
+    stack1[245] = 0x00000009;
+    stack1[244] = 0x00000008;
+    stack1[243] = 0x00000007;
+    stack1[242] = 0x00000006;
+    stack1[241] = 0x00000005;
+    stack1[240] = 0x00000004;
+    let mut stack2: [u32; 256] = [0xDEADBEEF; 256];
+    stack2[255] = 1 << 24;
+    stack2[254] = core::intrinsics::transmute(UserTask2 as *const fn());
+    stack2[253] = 0x0000000E;
+    stack2[252] = 0x0000000C;
+    stack2[251] = 0x00000003;
+    stack2[250] = 0x00000002;
+    stack2[249] = 0x00000001;
+    stack2[248] = 0x00000000;
+    // additional regs
+    // aditional regs
+    stack2[247] = 0x0000000B;
+    stack2[246] = 0x0000000A;
+    stack2[245] = 0x00000009;
+    stack2[244] = 0x00000008;
+    stack2[243] = 0x00000007;
+    stack2[242] = 0x00000006;
+    stack2[241] = 0x00000005;
+    stack2[240] = 0x00000004;
 
-    let mut usertask_stack1: [u32; 256] = [0; 256];
-    let mut usertask_stack2: [u32; 256] = [0; 256];
-    let mut stack_pointers: [&u32; 2] = [
-        create_task(&mut usertask_stack1, UserTask1),
-        create_task(&mut usertask_stack2, UserTask2),
-    ];
+    let sp1_addr: u32 = core::intrinsics::transmute(&stack1[240]);
+    let _ = hprintln!("sp1: 0x{:x}", sp1_addr);
 
-    let _ = hprintln!("starting round-robin scheduler");
-    let mut idx: usize = 0;
-    for _i in 1..5 {
-        stack_pointers[idx] = activate(stack_pointers[idx]);
-        let _ = hprintln!("back in main");
-        idx = if idx == 1 { 0 } else { idx + 1 };
+    let _t1_addr: u32 = core::intrinsics::transmute(&stack1);
+    let _t2_addr: u32 = core::intrinsics::transmute(&stack2);
+    let _ = hprintln!("threads: 0x{:x} 0x{:x}", _t1_addr, _t2_addr);
+    let _ = hprintln!("threads: {} {}", _t1_addr, _t2_addr);
+
+    init([
+            ThreadControlBlock {
+                sp: core::intrinsics::transmute(&stack1[240]),
+            },
+            ThreadControlBlock {
+                sp: core::intrinsics::transmute(&stack2[240]),
+            },
+        ]);
+    // debug::exit(debug::EXIT_SUCCESS);
+    loop {
+        for _i in 1..500000 {
+            cortex_m::asm::nop();
+        }
+        let _ = hprintln!("in main");
     }
-    debug::exit(debug::EXIT_SUCCESS);
-    loop {}
 }
 
-fn create_task(stack: &mut [u32; 256], _f: unsafe extern "C" fn() -> !) -> &'static u32 {
-    stack[(256 - 17) + 8] = THREAD_PSP;
-    stack[(256 - 17) + 16] = 0x01000000;
-    unsafe {
-        stack[(256 - 17) + 15] = core::intrinsics::transmute(_f as *const fn());;
-        activate(&stack[(256 - 17)])
-    }
-}
-
-#[link_section = ".usertask.task1"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask1() -> ! {
-    syscall();
     loop {
         let _ = hprintln!("in user task 1 !!");
         for _i in 1..500000 {
@@ -92,10 +117,8 @@ pub unsafe extern "C" fn UserTask1() -> ! {
     }
 }
 
-#[link_section = ".usertask.task2"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask2() -> ! {
-    syscall();
     loop {
         let _ = hprintln!("in user task 2 !!");
         for _i in 1..500000 {
@@ -138,26 +161,32 @@ pub static EXCEPTIONS: [Vector; 16] = [
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector {
-        handler: svc_handler,
+        handler: DefaultExceptionHandler,
     }, // SVC
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector {
-        handler: DefaultExceptionHandler,
+        handler: PendSVHandler,
     }, // pendsv
     Vector {
-        handler: systick_handler,
+        handler: SystickHandler,
     }, // systick
 ];
 
 #[no_mangle]
+pub unsafe extern "C" fn SystickHandler() {
+    let _ = hprintln!("Systick Handler!");
+    tick();
+}
+
+#[no_mangle]
 pub extern "C" fn DefaultExceptionHandler() {
     let _ = hprintln!("Default handler!");
-    loop {}
 }
 
 #[no_mangle]
 pub extern "C" fn HardFault() {
     let _ = hprintln!("!!!Hard fault!!!");
+    debug::exit(debug::EXIT_SUCCESS);
     loop {}
 }

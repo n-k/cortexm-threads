@@ -9,14 +9,10 @@ fn main() -> Result<(), Box<Error>> {
     // extend the library search path
     println!("cargo:rustc-link-search={}", out_dir.display());
 
-    // put `link.x` in the build directory
-    File::create(out_dir.join("link.x"))?.write_all(include_bytes!("link.x"))?;
-
     // assemble the `asm.s` file
     Build::new().file("asm.s").compile("asm");
 
     println!("cargo:rerun-if-changed=build.rs");
-    println!("cargo:rerun-if-changed=link.x");
     println!("cargo:rerun-if-changed=asm.s");
 
     Ok(())
