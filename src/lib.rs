@@ -3,7 +3,7 @@
 use core::ptr;
 
 #[repr(C)]
-struct ContextSwitchHandler {
+struct ThreadsState {
     // offset of curr and next fields are used by asm code, don't change their position
     curr: u32,
     next: u32,
@@ -76,7 +76,7 @@ extern "C" {
 // GLOBALS:
 #[no_mangle]
 static mut __CORTEXM_THREADS_GLOBAL_PTR: u32 = 0;
-static mut __CORTEXM_THREADS_GLOBAL: ContextSwitchHandler = ContextSwitchHandler {
+static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
     curr: 0,
     next: 0,
     inited: false,
