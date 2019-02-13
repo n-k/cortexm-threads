@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-use cortexm_threads::{ThreadControlBlock, tick, init, PendSVHandler};
+use cortexm_threads::{ThreadControlBlock, tick, init, create_thread, PendSVHandler};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -44,60 +44,11 @@ pub unsafe extern "C" fn Reset() {
 
 unsafe fn main() -> ! {
     let _ = hprintln!("entered _main");
-    let mut stack1: [u32; 256] = [0xDEADBEEF; 256];
-    stack1[255] = 1 << 24;
-    stack1[254] = core::intrinsics::transmute(UserTask1 as *const fn());
-    stack1[253] = 0x0000000E;
-    stack1[252] = 0x0000000C;
-    stack1[251] = 0x00000003;
-    stack1[250] = 0x00000002;
-    stack1[249] = 0x00000001;
-    stack1[248] = 0x00000000;
-    // aditional regs
-    stack1[247] = 0x0000000B;
-    stack1[246] = 0x0000000A;
-    stack1[245] = 0x00000009;
-    stack1[244] = 0x00000008;
-    stack1[243] = 0x00000007;
-    stack1[242] = 0x00000006;
-    stack1[241] = 0x00000005;
-    stack1[240] = 0x00000004;
-    let mut stack2: [u32; 256] = [0xDEADBEEF; 256];
-    stack2[255] = 1 << 24;
-    stack2[254] = core::intrinsics::transmute(UserTask2 as *const fn());
-    stack2[253] = 0x0000000E;
-    stack2[252] = 0x0000000C;
-    stack2[251] = 0x00000003;
-    stack2[250] = 0x00000002;
-    stack2[249] = 0x00000001;
-    stack2[248] = 0x00000000;
-    // additional regs
-    // aditional regs
-    stack2[247] = 0x0000000B;
-    stack2[246] = 0x0000000A;
-    stack2[245] = 0x00000009;
-    stack2[244] = 0x00000008;
-    stack2[243] = 0x00000007;
-    stack2[242] = 0x00000006;
-    stack2[241] = 0x00000005;
-    stack2[240] = 0x00000004;
-
-    let sp1_addr: u32 = core::intrinsics::transmute(&stack1[240]);
-    let _ = hprintln!("sp1: 0x{:x}", sp1_addr);
-
-    let _t1_addr: u32 = core::intrinsics::transmute(&stack1);
-    let _t2_addr: u32 = core::intrinsics::transmute(&stack2);
-    let _ = hprintln!("threads: 0x{:x} 0x{:x}", _t1_addr, _t2_addr);
-    let _ = hprintln!("threads: {} {}", _t1_addr, _t2_addr);
-
-    init([
-            ThreadControlBlock {
-                sp: core::intrinsics::transmute(&stack1[240]),
-            },
-            ThreadControlBlock {
-                sp: core::intrinsics::transmute(&stack2[240]),
-            },
-        ]);
+    let mut stack1 = [0xDEADBEEF; 256];
+    let mut stack2 = [0xDEADBEEF; 256];
+    create_thread(&mut stack1, UserTask1);
+    create_thread(&mut stack2, UserTask2);
+    init();
     // debug::exit(debug::EXIT_SUCCESS);
     loop {
         for _i in 1..500000 {
@@ -107,8 +58,7 @@ unsafe fn main() -> ! {
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn UserTask1() -> ! {
+pub fn UserTask1() -> ! {
     loop {
         let _ = hprintln!("in user task 1 !!");
         for _i in 1..500000 {
@@ -117,8 +67,7 @@ pub unsafe extern "C" fn UserTask1() -> ! {
     }
 }
 
-#[no_mangle]
-pub unsafe extern "C" fn UserTask2() -> ! {
+pub fn UserTask2() -> ! {
     loop {
         let _ = hprintln!("in user task 2 !!");
         for _i in 1..500000 {
