@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-use cortexm_threads::{OS, OSThread, tick, init, PendSVHandler};
+use cortexm_threads::{OSThread, tick, init, PendSVHandler};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -107,7 +107,6 @@ unsafe fn main() -> ! {
     }
 }
 
-#[link_section = ".usertask.task1"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask1() -> ! {
     loop {
@@ -118,7 +117,6 @@ pub unsafe extern "C" fn UserTask1() -> ! {
     }
 }
 
-#[link_section = ".usertask.task2"]
 #[no_mangle]
 pub unsafe extern "C" fn UserTask2() -> ! {
     loop {

@@ -3,7 +3,6 @@
 
 .global __OS_PTR
 
-
 .global PendSVHandler
 .thumb_func
 PendSVHandler:
@@ -11,18 +10,32 @@ PendSVHandler:
 	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = OS_PTR.curr ( &current_thread ) */
-	cbz		r1,	__PENDSV_RESTORE
-	push	{r4-r11}
-	str		sp, [r1, 0x0] /* current_thread.sp = sp */
+	cmp		r1,	0x0
+	beq		__PENDSV_RESTORE
+	push	{r4-r7}
+	mov		r4,	r8
+	mov		r5, r9
+	mov		r6, r10
+	mov		r7, r11
+	push	{r4-r7}
+	mov		r2, sp
+	str		r2, [r1, 0x0] /* current_thread.sp = sp */
 	__PENDSV_RESTORE:
-	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
-	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
-	ldr 	r2, [r1, 0x4] /* r2 = OS_PTR.next */
-	ldr 	sp, [r2, 0x0] /* sp = OS_PTR.next.sp */
-	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
-	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
-	ldr		r2,	[r1, 0x4] /* r1 = &OS.curr */
-	str		r2,	[r1, 0x0] /* set OS.curr = os.next */
-	pop		{r4-r11} /* popped regs */
+	ldr		r1, =__OS_PTR	/* r1 = &&OS_PTR */
+	ldr		r1,	[r1, 0x0]	/* r1 = &OS_PTR */
+	ldr 	r2, [r1, 0x4]	/* r2 = OS_PTR.next */
+	ldr		r2, [r2, 0x0]	/* r2 = OS_PTR.next.sp */
+	mov 	sp, r2			/* sp = OS_PTR.next.sp */
+	ldr		r1, =__OS_PTR	/* r1 = &&OS_PTR */
+	ldr		r1,	[r1, 0x0]	/* r1 = &OS_PTR */
+	ldr		r2,	[r1, 0x4]	/* r1 = &OS.curr */
+	str		r2,	[r1, 0x0]	/* set OS.curr = os.next */
+	/* pop		{r4-r11}		 pop regs */
+	pop		{r4-r7}
+	mov		r4,	r8
+	mov		r5, r9
+	mov		r6, r10
+	mov		r7, r11
+	pop		{r4-r7}
 	cpsie	i
 	bx lr
