@@ -20,38 +20,44 @@ pub struct ThreadControlBlock {
 }
 
 pub unsafe extern "C" fn init() {
+    __CORTEXM_THREADS_cpsid();
     __CORTEXM_THREADS_GLOBAL.inited = true;
     __CORTEXM_THREADS_GLOBAL_PTR = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
+    __CORTEXM_THREADS_cpsie();
 }
 
-pub unsafe extern "C" fn create_thread(stack: &mut [u32; 256], handler: fn() -> !) {
-    stack[255] = 1 << 24;
-    stack[254] = core::intrinsics::transmute(handler as *const fn());
-    stack[253] = 0x0000000E;
-    stack[252] = 0x0000000C;
-    stack[251] = 0x00000003;
-    stack[250] = 0x00000002;
-    stack[249] = 0x00000001;
-    stack[248] = 0x00000000;
+pub unsafe extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
+    __CORTEXM_THREADS_cpsid();
+    let idx = stack.len() - 1;
+    stack[idx] = 1 << 24;
+    stack[idx - 1] = core::intrinsics::transmute(handler as *const fn());
+    stack[idx - 2] = 0x0000000E;
+    stack[idx - 3] = 0x0000000C;
+    stack[idx - 4] = 0x00000003;
+    stack[idx - 5] = 0x00000002;
+    stack[idx - 6] = 0x00000001;
+    stack[idx - 7] = 0x00000000;
     // aditional regs
-    stack[247] = 0x0000000B;
-    stack[246] = 0x0000000A;
-    stack[245] = 0x00000009;
-    stack[244] = 0x00000008;
-    stack[243] = 0x00000007;
-    stack[242] = 0x00000006;
-    stack[241] = 0x00000005;
-    stack[240] = 0x00000004;
+    stack[idx - 8] = 0x0000000B;
+    stack[idx - 9] = 0x0000000A;
+    stack[idx - 10] = 0x00000009;
+    stack[idx - 11] = 0x00000008;
+    stack[idx - 12] = 0x00000007;
+    stack[idx - 13] = 0x00000006;
+    stack[idx - 14] = 0x00000005;
+    stack[idx - 15] = 0x00000004;
     let tcb = ThreadControlBlock {
-        sp: core::intrinsics::transmute(&stack[240]),
+        sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
     };
     let handler = &mut __CORTEXM_THREADS_GLOBAL;
     handler.threads[handler.add_idx] = tcb;
     handler.add_idx = handler.add_idx + 1;
+    __CORTEXM_THREADS_cpsie();
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn tick() {
+    __CORTEXM_THREADS_cpsid();
     let handler = &mut __CORTEXM_THREADS_GLOBAL;
     if handler.inited && handler.add_idx > 0 {
         if handler.curr == handler.next {
@@ -67,10 +73,13 @@ pub unsafe extern "C" fn tick() {
             ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
         }
     }
+    __CORTEXM_THREADS_cpsie();
 }
 
 extern "C" {
     pub fn __CORTEXM_THREADS_PendSVHandler();
+    fn __CORTEXM_THREADS_cpsid();
+    fn __CORTEXM_THREADS_cpsie();
 }
 
 // GLOBALS:

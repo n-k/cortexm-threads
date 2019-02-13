@@ -3,6 +3,18 @@
 
 .global __CORTEXM_THREADS_GLOBAL_PTR
 
+.global __CORTEXM_THREADS_cpsid
+.thumb_func
+__CORTEXM_THREADS_cpsid:
+	cpsid	i
+	bx lr
+
+.global __CORTEXM_THREADS_cpsie
+.thumb_func
+__CORTEXM_THREADS_cpsie:
+	cpsie	i
+	bx lr
+
 .global __CORTEXM_THREADS_PendSVHandler
 .thumb_func
 __CORTEXM_THREADS_PendSVHandler:
