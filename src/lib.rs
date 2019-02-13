@@ -3,7 +3,7 @@
 use core::ptr;
 
 #[repr(C)]
-struct OS {
+struct ContextSwitchHandler {
     // offset of curr and next fields are used by asm code, don't change their position
     curr: u32,
     next: u32,
@@ -45,28 +45,26 @@ pub unsafe extern "C" fn create_thread(stack: &mut [u32; 256], handler: fn() -> 
     let tcb = ThreadControlBlock {
         sp: core::intrinsics::transmute(&stack[240]),
     };
-    let os = &mut __CORTEXM_THREADS_GLOBAL;
-    os.threads[os.add_idx] = tcb;
-    os.add_idx = os.add_idx + 1;
+    let handler = &mut __CORTEXM_THREADS_GLOBAL;
+    handler.threads[handler.add_idx] = tcb;
+    handler.add_idx = handler.add_idx + 1;
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn tick() {
-    if __CORTEXM_THREADS_GLOBAL_PTR != 0 {
-        let os: &mut OS = &mut *(__CORTEXM_THREADS_GLOBAL_PTR as *mut OS);
-        if os.inited && os.add_idx > 0 {
-            if os.curr == os.next {
-                // schedule a thread to be run
-                os.next = core::intrinsics::transmute(&os.threads[os.idx]);
-                os.idx = os.idx + 1;
-                if os.idx >= os.add_idx {
-                    os.idx = 0;
-                }
+    let handler = &mut __CORTEXM_THREADS_GLOBAL;
+    if handler.inited && handler.add_idx > 0 {
+        if handler.curr == handler.next {
+            // schedule a thread to be run
+            handler.next = core::intrinsics::transmute(&handler.threads[handler.idx]);
+            handler.idx = handler.idx + 1;
+            if handler.idx >= handler.add_idx {
+                handler.idx = 0;
             }
-            if os.curr != os.next {
-                let pend = ptr::read_volatile(0xE000ED04 as *const u32);
-                ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
-            }
+        }
+        if handler.curr != handler.next {
+            let pend = ptr::read_volatile(0xE000ED04 as *const u32);
+            ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
         }
     }
 }
@@ -75,48 +73,47 @@ extern "C" {
     pub fn PendSVHandler();
 }
 
-
 // GLOBALS:
 #[no_mangle]
 static mut __CORTEXM_THREADS_GLOBAL_PTR: u32 = 0;
-static mut __CORTEXM_THREADS_GLOBAL: OS = OS {
+static mut __CORTEXM_THREADS_GLOBAL: ContextSwitchHandler = ContextSwitchHandler {
     curr: 0,
     next: 0,
     inited: false,
     idx: 0,
     add_idx: 0,
     threads: [
-        ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
-            ThreadControlBlock {sp: 0},
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
+        ThreadControlBlock { sp: 0 },
     ],
 };
