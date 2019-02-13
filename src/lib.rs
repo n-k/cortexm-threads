@@ -70,7 +70,7 @@ pub unsafe extern "C" fn tick() {
 }
 
 extern "C" {
-    pub fn PendSVHandler();
+    pub fn __CORTEXM_THREADS_PendSVHandler();
 }
 
 // GLOBALS:

@@ -3,15 +3,15 @@
 
 .global __CORTEXM_THREADS_GLOBAL_PTR
 
-.global PendSVHandler
+.global __CORTEXM_THREADS_PendSVHandler
 .thumb_func
-PendSVHandler:
+__CORTEXM_THREADS_PendSVHandler:
 	cpsid	i
 	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR /* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = OS_PTR.curr ( &current_thread ) */
 	cmp		r1,	0x0
-	beq		__PENDSV_RESTORE
+	beq		__CORTEXM_THREADS_PENDSV_RESTORE
 	push	{r4-r7}
 	mov		r4,	r8
 	mov		r5, r9
@@ -20,7 +20,7 @@ PendSVHandler:
 	push	{r4-r7}
 	mov		r2, sp
 	str		r2, [r1, 0x0] /* current_thread.sp = sp */
-	__PENDSV_RESTORE:
+	__CORTEXM_THREADS_PENDSV_RESTORE:
 	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR	/* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0]	/* r1 = &OS_PTR */
 	ldr 	r2, [r1, 0x4]	/* r2 = OS_PTR.next */

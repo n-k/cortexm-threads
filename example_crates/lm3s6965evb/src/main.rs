@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-use cortexm_threads::{ThreadControlBlock, tick, init, create_thread, PendSVHandler};
+use cortexm_threads::{tick, init, create_thread, __CORTEXM_THREADS_PendSVHandler};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -49,12 +49,9 @@ unsafe fn main() -> ! {
     create_thread(&mut stack1, UserTask1);
     create_thread(&mut stack2, UserTask2);
     init();
-    // debug::exit(debug::EXIT_SUCCESS);
+    // unreachable
     loop {
-        for _i in 1..500000 {
-            cortex_m::asm::nop();
-        }
-        let _ = hprintln!("in main");
+        cortex_m::asm::nop();
     }
 }
 
@@ -115,7 +112,7 @@ pub static EXCEPTIONS: [Vector; 16] = [
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector {
-        handler: PendSVHandler,
+        handler: __CORTEXM_THREADS_PendSVHandler,
     }, // pendsv
     Vector {
         handler: SystickHandler,
