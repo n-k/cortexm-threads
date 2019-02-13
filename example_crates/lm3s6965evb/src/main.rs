@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-use cortexm_threads::{OSThread, tick, init, PendSVHandler};
+use cortexm_threads::{ThreadControlBlock, tick, init, PendSVHandler};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -91,10 +91,10 @@ unsafe fn main() -> ! {
     let _ = hprintln!("threads: {} {}", _t1_addr, _t2_addr);
 
     init([
-            OSThread {
+            ThreadControlBlock {
                 sp: core::intrinsics::transmute(&stack1[240]),
             },
-            OSThread {
+            ThreadControlBlock {
                 sp: core::intrinsics::transmute(&stack2[240]),
             },
         ]);

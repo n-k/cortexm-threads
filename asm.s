@@ -1,13 +1,13 @@
 .thumb
 .syntax unified
 
-.global __OS_PTR
+.global __CORTEXM_THREADS_GLOBAL_PTR
 
 .global PendSVHandler
 .thumb_func
 PendSVHandler:
 	cpsid	i
-	ldr		r1, =__OS_PTR /* r1 = &&OS_PTR */
+	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR /* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = OS_PTR.curr ( &current_thread ) */
 	cmp		r1,	0x0
@@ -21,12 +21,12 @@ PendSVHandler:
 	mov		r2, sp
 	str		r2, [r1, 0x0] /* current_thread.sp = sp */
 	__PENDSV_RESTORE:
-	ldr		r1, =__OS_PTR	/* r1 = &&OS_PTR */
+	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR	/* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0]	/* r1 = &OS_PTR */
 	ldr 	r2, [r1, 0x4]	/* r2 = OS_PTR.next */
 	ldr		r2, [r2, 0x0]	/* r2 = OS_PTR.next.sp */
 	mov 	sp, r2			/* sp = OS_PTR.next.sp */
-	ldr		r1, =__OS_PTR	/* r1 = &&OS_PTR */
+	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR	/* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0]	/* r1 = &OS_PTR */
 	ldr		r2,	[r1, 0x4]	/* r1 = &OS.curr */
 	str		r2,	[r1, 0x0]	/* set OS.curr = os.next */
