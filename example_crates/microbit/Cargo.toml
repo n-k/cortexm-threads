@@ -1,0 +1,16 @@
+[package]
+name = "microbit"
+version = "0.1.0"
+authors = ["n-k <nipunkumar@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+cortexm-threads = { path = "../.." }
+cortex-m = "0.5.8"
+cortex-m-rt = { version = "0.6.7", features = ["device"] }
+cortex-m-semihosting = "0.3.2"
+panic-halt = "0.2.0"
+panic-semihosting = "0.5.1"
+nrf51 = { version = "0.6.0", features = ["rt"] }
+nrf51-hal = { version = "0.6.1", features = ["rt"] }
+microbit = "0.7.0"

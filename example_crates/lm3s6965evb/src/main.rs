@@ -6,7 +6,7 @@ use core::panic::PanicInfo;
 use core::ptr;
 use cortex_m_semihosting::{debug, hprintln};
 
-use cortexm_threads::{tick, init, create_thread, __CORTEXM_THREADS_PendSVHandler};
+use cortexm_threads::{tick, init, create_thread, PendSV};
 
 // extern defs, from link.x or asm.s
 extern "C" {
@@ -112,7 +112,7 @@ pub static EXCEPTIONS: [Vector; 16] = [
     Vector { reserved: 0 },
     Vector { reserved: 0 },
     Vector {
-        handler: __CORTEXM_THREADS_PendSVHandler,
+        handler: PendSV,
     }, // pendsv
     Vector {
         handler: SystickHandler,

@@ -15,9 +15,9 @@ __CORTEXM_THREADS_cpsie:
 	cpsie	i
 	bx lr
 
-.global __CORTEXM_THREADS_PendSVHandler
+.global PendSV
 .thumb_func
-__CORTEXM_THREADS_PendSVHandler:
+PendSV:
 	cpsid	i
 	ldr		r1, =__CORTEXM_THREADS_GLOBAL_PTR /* r1 = &&OS_PTR */
 	ldr		r1,	[r1, 0x0] /* r1 = &OS_PTR */
