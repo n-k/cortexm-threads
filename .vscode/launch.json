@@ -15,6 +15,24 @@
                 "target remote :3333",
                 "monitor arm semihosting enable"
             ]
+        },
+        {
+            "name": "microbit - GDB",
+            "type": "gdb",
+            "request": "launch",
+            "cwd": "${workspaceRoot}/example_crates/microbit",
+            "target": "${workspaceRoot}/example_crates/microbit/target/thumbv6m-none-eabi/debug/microbit", 
+            "gdbpath" : "gdb-multiarch",
+            "autorun": [
+                "target remote :3333",
+                "set remotetimeout 5",
+                "set print asm-demangle on",
+                "monitor arm semihosting enable",
+                "load",
+                "break UserTask1",
+                "break PendSV",
+                "continue" 
+            ]
         }
     ]
 }

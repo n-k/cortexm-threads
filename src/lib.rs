@@ -77,7 +77,7 @@ pub unsafe extern "C" fn tick() {
 }
 
 extern "C" {
-    pub fn __CORTEXM_THREADS_PendSVHandler();
+    pub fn PendSV();
     fn __CORTEXM_THREADS_cpsid();
     fn __CORTEXM_THREADS_cpsie();
 }
