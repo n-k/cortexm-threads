@@ -9,7 +9,7 @@ use cortex_m::peripheral::Peripherals;
 use cortex_m_rt::{entry, exception};
 
 use core::ptr;
-use cortexm_threads::{tick, init, create_thread, PendSV};
+use cortexm_threads::{tick, init, create_thread, PendSV, __CORTEXM_THREADS_cpsid, __CORTEXM_THREADS_cpsie};
 
 #[entry]
 fn main() -> ! {
@@ -28,7 +28,7 @@ fn main() -> ! {
         p.CLOCK.events_lfclkstarted.write(|w| unsafe { w.bits(0) });
         // set pendsv as low priority
         unsafe {
-            ptr::write_volatile(0xE000ED20 as *mut u32, 0xFF << 16);
+            ptr::write_volatile(0xE000ED20 as *mut u32, 0x00 << 16);
             cp.NVIC.set_priority(microbit::Interrupt::RTC0, 0x00);
         }
         /* Setup rtc1 */
@@ -81,10 +81,20 @@ pub fn UserTask2() -> ! {
     }
 }
 
+static mut TICK_COUNT: u32 = 0;
+
 #[no_mangle]
-fn RTC0() {
+pub extern "C" fn RTC0() {
     unsafe {
-        tick();
+        __CORTEXM_THREADS_cpsid();
+        if TICK_COUNT == 0 {
+            tick();
+        }
+        TICK_COUNT = TICK_COUNT + 1;
+        if TICK_COUNT == 10 {
+            TICK_COUNT = 0;
+        }
+        __CORTEXM_THREADS_cpsie();
     }
     let _ = hprintln!("RTC0!");
 }
