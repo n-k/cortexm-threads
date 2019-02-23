@@ -26,24 +26,24 @@ fn main() -> ! {
         p.CLOCK.tasks_lfclkstart.write(|w| unsafe { w.bits(1) });
         while p.CLOCK.events_lfclkstarted.read().bits() == 0 {}
         p.CLOCK.events_lfclkstarted.write(|w| unsafe { w.bits(0) });
-        // set pendsv as low priority
         unsafe {
-            ptr::write_volatile(0xE000ED20 as *mut u32, 0x00 << 16);
+            // set pendsv as low priority
+            ptr::write_volatile(0xE000ED20 as *mut u32, 0xFF << 16);
             cp.NVIC.set_priority(microbit::Interrupt::RTC0, 0x00);
         }
         /* Setup rtc1 */
-        cp.NVIC.enable(microbit::Interrupt::RTC0);
-        p.RTC0.prescaler.write(|w| unsafe { w.bits(10000) });
-        p.RTC0.evtenset.write(|w| w.tick().set_bit());
-        p.RTC0.intenset.write(|w| w.tick().set_bit());
-        p.RTC0.tasks_start.write(|w| unsafe { w.bits(1) });
+        // cp.NVIC.enable(microbit::Interrupt::RTC0);
+        // p.RTC0.prescaler.write(|w| unsafe { w.bits(10000) });
+        // p.RTC0.evtenset.write(|w| w.tick().set_bit());
+        // p.RTC0.intenset.write(|w| w.tick().set_bit());
+        // p.RTC0.tasks_start.write(|w| unsafe { w.bits(1) });
     }
     loop {
-        for _i in 1..50000 {
-            cortex_m::asm::nop();
-        }
+        // for _i in 1..50000 {
+        //     cortex_m::asm::nop();
+        // }
         unsafe {
-            // tick();
+            tick();
             // let pend = ptr::read_volatile(0xE000ED04 as *const u32);
             // ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
         }
@@ -59,7 +59,7 @@ pub fn UserTask1() -> ! {
             cortex_m::asm::nop();
         }
         unsafe {
-            // tick();
+            tick();
             // let pend = ptr::read_volatile(0xE000ED04 as *const u32);
             // ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
         }
@@ -74,7 +74,7 @@ pub fn UserTask2() -> ! {
             cortex_m::asm::nop();
         }
         unsafe {
-            // tick();
+            tick();
             // let pend = ptr::read_volatile(0xE000ED04 as *const u32);
             // ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
         }
@@ -88,7 +88,8 @@ pub extern "C" fn RTC0() {
     unsafe {
         __CORTEXM_THREADS_cpsid();
         if TICK_COUNT == 0 {
-            tick();
+            // let _ = hprintln!("DEBUG: Pend SV!");
+            // tick();
         }
         TICK_COUNT = TICK_COUNT + 1;
         if TICK_COUNT == 10 {
@@ -96,5 +97,4 @@ pub extern "C" fn RTC0() {
         }
         __CORTEXM_THREADS_cpsie();
     }
-    let _ = hprintln!("RTC0!");
 }

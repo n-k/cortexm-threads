@@ -29,8 +29,8 @@
                 "set print asm-demangle on",
                 "monitor arm semihosting enable",
                 "load",
-                "break UserTask1",
                 "break PendSV",
+                "break main",
                 "continue" 
             ]
         }
