@@ -5,7 +5,7 @@ ARM Cortex-M series microcontrollers.
 
 ## Examples
 The `example_crates` folder contains crates showing how to 
-use cortxm-threads for different boards.
+use cortexm-threads for different boards.
 
 Available examples:
  - [stm32f3](./example_crates/stm32f3) - 2 threads with one 
