@@ -33,6 +33,23 @@
                 "break main",
                 "continue" 
             ]
+        },
+        {
+            "name": "F3 - GDB",
+            "type": "gdb",
+            "request": "launch",
+            "cwd": "${workspaceRoot}/example_crates/stm32f3",
+            "target": "${workspaceRoot}/example_crates/stm32f3/target/thumbv7em-none-eabihf/debug/stm32f3", 
+            "gdbpath" : "gdb-multiarch",
+            "autorun": [
+                "target remote :3333",
+                "set remotetimeout 5",
+                "set print asm-demangle on",
+                "monitor arm semihosting enable",
+                "load",
+                "break main",
+                "continue" 
+            ]
         }
     ]
 }
