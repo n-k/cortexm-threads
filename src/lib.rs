@@ -1,7 +1,6 @@
 #![no_std]
 
 use core::ptr;
-use cortex_m_semihosting::hprintln;
 
 #[repr(C)]
 struct ThreadsState {
@@ -50,7 +49,6 @@ pub unsafe extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
     let tcb = ThreadControlBlock {
         sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
     };
-    let _ = hprintln!("DEBUG: stack pointer: 0x{:x}", tcb.sp);
     let handler = &mut __CORTEXM_THREADS_GLOBAL;
     handler.threads[handler.add_idx] = tcb;
     handler.add_idx = handler.add_idx + 1;
@@ -65,10 +63,6 @@ pub unsafe extern "C" fn tick() {
         if handler.curr == handler.next {
             // schedule a thread to be run
             handler.next = core::intrinsics::transmute(&handler.threads[handler.idx]);
-            let _ = hprintln!("DEBUG: curr: {:x} , next: {:x} (sp = {:x})", 
-                                handler.curr,
-                                handler.next,
-                                handler.threads[handler.idx].sp);
             handler.idx = handler.idx + 1;
             if handler.idx >= handler.add_idx {
                 handler.idx = 0;
