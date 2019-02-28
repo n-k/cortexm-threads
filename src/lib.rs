@@ -1,6 +1,7 @@
 #![no_std]
 
 use core::ptr;
+use cortex_m_semihosting::hprintln;
 
 #[repr(C)]
 struct ThreadsState {
@@ -29,26 +30,27 @@ pub unsafe extern "C" fn init() {
 pub unsafe extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
     __CORTEXM_THREADS_cpsid();
     let idx = stack.len() - 1;
-    stack[idx] = 1 << 24;
-    stack[idx - 1] = core::intrinsics::transmute(handler as *const fn());
-    stack[idx - 2] = 0x0000000E;
-    stack[idx - 3] = 0x0000000C;
-    stack[idx - 4] = 0x00000003;
-    stack[idx - 5] = 0x00000002;
-    stack[idx - 6] = 0x00000001;
-    stack[idx - 7] = 0x00000000;
+    stack[idx] = 1 << 24; // xPSR
+    stack[idx - 1] = core::intrinsics::transmute(handler as *const fn()); // PC
+    stack[idx - 2] = 0xFFFFFFFD; // LR
+    stack[idx - 3] = 0xCCCCCCCC; // R12
+    stack[idx - 4] = 0x33333333; // R3
+    stack[idx - 5] = 0x22222222; // R2
+    stack[idx - 6] = 0x11111111; // R1
+    stack[idx - 7] = 0x00000000; // R0
     // aditional regs
-    stack[idx - 8] = 0x0000000B;
-    stack[idx - 9] = 0x0000000A;
-    stack[idx - 10] = 0x00000009;
-    stack[idx - 11] = 0x00000008;
-    stack[idx - 12] = 0x00000007;
-    stack[idx - 13] = 0x00000006;
-    stack[idx - 14] = 0x00000005;
-    stack[idx - 15] = 0x00000004;
+    stack[idx - 08] = 0x77777777; // R7
+    stack[idx - 09] = 0x66666666; // R6
+    stack[idx - 10] = 0x55555555; // R5
+    stack[idx - 11] = 0x44444444; // R4
+    stack[idx - 12] = 0xBBBBBBBB; // R11
+    stack[idx - 13] = 0xAAAAAAAA; // R10
+    stack[idx - 14] = 0x99999999; // R9
+    stack[idx - 15] = 0x88888888; // R8
     let tcb = ThreadControlBlock {
         sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
     };
+    let _ = hprintln!("DEBUG: stack pointer: 0x{:x}", tcb.sp);
     let handler = &mut __CORTEXM_THREADS_GLOBAL;
     handler.threads[handler.add_idx] = tcb;
     handler.add_idx = handler.add_idx + 1;
@@ -63,6 +65,10 @@ pub unsafe extern "C" fn tick() {
         if handler.curr == handler.next {
             // schedule a thread to be run
             handler.next = core::intrinsics::transmute(&handler.threads[handler.idx]);
+            let _ = hprintln!("DEBUG: curr: {:x} , next: {:x} (sp = {:x})", 
+                                handler.curr,
+                                handler.next,
+                                handler.threads[handler.idx].sp);
             handler.idx = handler.idx + 1;
             if handler.idx >= handler.add_idx {
                 handler.idx = 0;
@@ -78,8 +84,8 @@ pub unsafe extern "C" fn tick() {
 
 extern "C" {
     pub fn PendSV();
-    fn __CORTEXM_THREADS_cpsid();
-    fn __CORTEXM_THREADS_cpsie();
+    pub fn __CORTEXM_THREADS_cpsid();
+    pub fn __CORTEXM_THREADS_cpsie();
 }
 
 // GLOBALS:
