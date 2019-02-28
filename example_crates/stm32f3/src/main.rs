@@ -9,53 +9,93 @@ use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::{entry, exception};
 use cortex_m_semihosting::{hprintln};
 
+use f3::{
+    hal::{
+		i2c::I2c,
+		prelude::*, 
+		stm32f30x
+	},
+    led::Leds,
+	Lsm303dlhc,
+};
+
 use cortexm_threads::{tick, init, create_thread};
+
+static mut LEDS: Option<Leds> = None;
+static mut SENSOR: Option<Lsm303dlhc> = None;
 
 #[entry]
 unsafe fn main() -> ! {
-    let _ = hprintln!("Hello, world!").unwrap();
-
     // set pendsv as low priority
     ptr::write_volatile(0xE000ED20 as *mut u32, 0xFF << 16);
 
-    let mut stack1 = [0xDEADBEEF; 256];
-    let mut stack2 = [0xDEADBEEF; 256];
+    let cp = cortex_m::Peripherals::take().unwrap();
+	let dp = stm32f30x::Peripherals::take().unwrap();
+	
+	let mut rcc = dp.RCC.constrain();
+	let leds = Leds::new(dp.GPIOE.split(&mut rcc.ahb));
+	LEDS = Some(leds);
+	
+	let mut gpiob = dp.GPIOB.split(&mut rcc.ahb);
+    let scl = gpiob.pb6.into_af4(&mut gpiob.moder, &mut gpiob.afrl);
+    let sda = gpiob.pb7.into_af4(&mut gpiob.moder, &mut gpiob.afrl);
+
+	let mut flash = dp.FLASH.constrain();
+	let clocks = rcc.cfgr.freeze(&mut flash.acr);
+    let i2c = I2c::i2c1(dp.I2C1, (scl, sda), 400.khz(), clocks, &mut rcc.apb1);
+	SENSOR = Some(Lsm303dlhc::new(i2c).unwrap());
+    
+	let mut syst = cp.SYST;
+    // configures the system timer to trigger a SysTick exception every second
+    syst.set_clock_source(SystClkSource::Core);
+    // tick every 12.5ms
+    syst.set_reload(100_000);
+    syst.enable_counter();
+    syst.enable_interrupt();
+
+	let mut stack1 = [0xDEADBEEF; 512];
+    let mut stack2 = [0xDEADBEEF; 512];
     create_thread(&mut stack1, user_task_1);
     create_thread(&mut stack2, user_task_2);
     init();
 
-    let p = cortex_m::Peripherals::take().unwrap();
-    let mut syst = p.SYST;
-
-    // configures the system timer to trigger a SysTick exception every second
-    syst.set_clock_source(SystClkSource::Core);
-    // tick every 250ms
-    syst.set_reload(2_000_000);
-    syst.enable_counter();
-    syst.enable_interrupt();
     loop {}
 }
 
 pub fn user_task_1() -> ! {
-    loop {
-        let _ = hprintln!("in user task 1 !!");
-        for _i in 1..5000 {
-            cortex_m::asm::nop();
-        }
-    }
+	unsafe {
+	    loop {
+			if LEDS.is_some() {
+				let leds = LEDS.as_mut().unwrap();
+		        for curr in 0..8 {
+		            let next = (curr + 1) % 8;
+		
+		            leds[next].on();
+		            for _i in 1..500 { cortex_m::asm::nop(); }
+		            leds[curr].off();
+		            for _i in 1..500 { cortex_m::asm::nop(); }
+		        }
+			} 
+	    }
+	}
 }
 
 pub fn user_task_2() -> ! {
-    loop {
-        let _ = hprintln!("in user task 2 !!");
-        for _i in 1..5000 {
-            cortex_m::asm::nop();
-        }
-    }
+	unsafe {
+	    loop {
+			if SENSOR.is_some() {
+				let sensor = SENSOR.as_mut().unwrap();
+				let x = sensor.mag();
+		        let _ = hprintln!("{:?}", x);
+		        for _i in 1..50000 {
+		            cortex_m::asm::nop();
+		        }
+			}
+	    }
+	}
 }
 
 #[exception]
 unsafe fn SysTick() {
-    // let _ = hprintln!(".").unwrap();
     tick();
 }
