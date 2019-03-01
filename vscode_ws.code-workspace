@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "example_crates/stm32f3"
+		},
+		{
+			"path": "example_crates/qemu-m4"
+		},
+		{
+			"path": "example_crates/microbit"
+		}
+	],
+	"settings": {}
+}

@@ -19,18 +19,24 @@ pub struct ThreadControlBlock {
     pub sp: u32,
 }
 
-pub unsafe extern "C" fn init() {
-    __CORTEXM_THREADS_cpsid();
-    __CORTEXM_THREADS_GLOBAL.inited = true;
-    __CORTEXM_THREADS_GLOBAL_PTR = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
-    __CORTEXM_THREADS_cpsie();
+pub extern "C" fn init() {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+        __CORTEXM_THREADS_GLOBAL.inited = true;
+        __CORTEXM_THREADS_GLOBAL_PTR = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
+        __CORTEXM_THREADS_cpsie();
+    }
 }
 
-pub unsafe extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
-    __CORTEXM_THREADS_cpsid();
+pub extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+    }
     let idx = stack.len() - 1;
     stack[idx] = 1 << 24; // xPSR
-    stack[idx - 1] = core::intrinsics::transmute(handler as *const fn()); // PC
+    unsafe {
+        stack[idx - 1] = core::intrinsics::transmute(handler as *const fn()); // PC
+    }
     stack[idx - 2] = 0xFFFFFFFD; // LR
     stack[idx - 3] = 0xCCCCCCCC; // R12
     stack[idx - 4] = 0x33333333; // R3
@@ -46,34 +52,46 @@ pub unsafe extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
     stack[idx - 13] = 0xAAAAAAAA; // R10
     stack[idx - 14] = 0x99999999; // R9
     stack[idx - 15] = 0x88888888; // R8
-    let tcb = ThreadControlBlock {
-        sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
-    };
-    let handler = &mut __CORTEXM_THREADS_GLOBAL;
-    handler.threads[handler.add_idx] = tcb;
-    handler.add_idx = handler.add_idx + 1;
-    __CORTEXM_THREADS_cpsie();
+    unsafe {
+        let tcb = ThreadControlBlock {
+            sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
+        };
+        let handler = &mut __CORTEXM_THREADS_GLOBAL;
+        handler.threads[handler.add_idx] = tcb;
+        handler.add_idx = handler.add_idx + 1;
+    }
+    unsafe {
+        __CORTEXM_THREADS_cpsie();
+    }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn tick() {
-    __CORTEXM_THREADS_cpsid();
-    let handler = &mut __CORTEXM_THREADS_GLOBAL;
+pub extern "C" fn tick() {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+    }
+    let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
     if handler.inited && handler.add_idx > 0 {
         if handler.curr == handler.next {
             // schedule a thread to be run
-            handler.next = core::intrinsics::transmute(&handler.threads[handler.idx]);
+            unsafe {
+                handler.next = core::intrinsics::transmute(&handler.threads[handler.idx]);
+            }
             handler.idx = handler.idx + 1;
             if handler.idx >= handler.add_idx {
                 handler.idx = 0;
             }
         }
         if handler.curr != handler.next {
-            let pend = ptr::read_volatile(0xE000ED04 as *const u32);
-            ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
+            unsafe {
+                let pend = ptr::read_volatile(0xE000ED04 as *const u32);
+                ptr::write_volatile(0xE000ED04 as *mut u32, pend | 1 << 28);
+            }
         }
     }
-    __CORTEXM_THREADS_cpsie();
+    unsafe {
+        __CORTEXM_THREADS_cpsie();
+    }
 }
 
 extern "C" {

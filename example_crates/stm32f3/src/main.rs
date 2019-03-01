@@ -2,9 +2,6 @@
 #![no_main]
 
 extern crate panic_halt;
-
-use core::ptr;
-
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::{entry, exception};
 use cortex_m_semihosting::{hprintln};
@@ -25,16 +22,15 @@ static mut LEDS: Option<Leds> = None;
 static mut SENSOR: Option<Lsm303dlhc> = None;
 
 #[entry]
-unsafe fn main() -> ! {
-    // set pendsv as low priority
-    ptr::write_volatile(0xE000ED20 as *mut u32, 0xFF << 16);
-
+fn main() -> ! {
     let cp = cortex_m::Peripherals::take().unwrap();
 	let dp = stm32f30x::Peripherals::take().unwrap();
 	
 	let mut rcc = dp.RCC.constrain();
 	let leds = Leds::new(dp.GPIOE.split(&mut rcc.ahb));
-	LEDS = Some(leds);
+	unsafe {
+		LEDS = Some(leds);
+	}
 	
 	let mut gpiob = dp.GPIOB.split(&mut rcc.ahb);
     let scl = gpiob.pb6.into_af4(&mut gpiob.moder, &mut gpiob.afrl);
@@ -43,7 +39,9 @@ unsafe fn main() -> ! {
 	let mut flash = dp.FLASH.constrain();
 	let clocks = rcc.cfgr.freeze(&mut flash.acr);
     let i2c = I2c::i2c1(dp.I2C1, (scl, sda), 400.khz(), clocks, &mut rcc.apb1);
-	SENSOR = Some(Lsm303dlhc::new(i2c).unwrap());
+	unsafe {
+		SENSOR = Some(Lsm303dlhc::new(i2c).unwrap());
+	}
     
 	let mut syst = cp.SYST;
     // configures the system timer to trigger a SysTick exception every second
@@ -63,39 +61,35 @@ unsafe fn main() -> ! {
 }
 
 pub fn user_task_1() -> ! {
-	unsafe {
-	    loop {
-			if LEDS.is_some() {
-				let leds = LEDS.as_mut().unwrap();
-		        for curr in 0..8 {
-		            let next = (curr + 1) % 8;
-		
-		            leds[next].on();
-		            for _i in 1..500 { cortex_m::asm::nop(); }
-		            leds[curr].off();
-		            for _i in 1..500 { cortex_m::asm::nop(); }
-		        }
-			} 
-	    }
+	loop {
+		if unsafe { LEDS.is_some() } {
+			let leds = unsafe { LEDS.as_mut().unwrap() };
+			for curr in 0..8 {
+				let next = (curr + 1) % 8;
+	
+				leds[next].on();
+				for _i in 1..500 { cortex_m::asm::nop(); }
+				leds[curr].off();
+				for _i in 1..500 { cortex_m::asm::nop(); }
+			}
+		} 
 	}
 }
 
 pub fn user_task_2() -> ! {
-	unsafe {
-	    loop {
-			if SENSOR.is_some() {
-				let sensor = SENSOR.as_mut().unwrap();
-				let x = sensor.mag();
-		        let _ = hprintln!("{:?}", x);
-		        for _i in 1..50000 {
-		            cortex_m::asm::nop();
-		        }
+	loop {
+		if unsafe { SENSOR.is_some() } {
+			let sensor = unsafe { SENSOR.as_mut().unwrap() };
+			let x = sensor.mag();
+			let _ = hprintln!("{:?}", x);
+			for _i in 1..50000 {
+				cortex_m::asm::nop();
 			}
-	    }
+		}
 	}
 }
 
 #[exception]
-unsafe fn SysTick() {
+fn SysTick() {
     tick();
 }

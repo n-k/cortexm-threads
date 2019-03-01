@@ -1,16 +1,21 @@
-use std::{env, error::Error, fmt, path::PathBuf};
+use std::{
+	env, 
+	error::Error, 
+	// fmt, 
+	path::PathBuf
+};
 
 use cc::Build;
 
-#[derive(Debug)]
-struct TargetArchError(String);
+// #[derive(Debug)]
+// struct TargetArchError(String);
 
-impl Error for TargetArchError {}
-impl fmt::Display for TargetArchError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "There is an error: {}", self.0)
-    }
-}
+// impl Error for TargetArchError {}
+// impl fmt::Display for TargetArchError {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "There is an error: {}", self.0)
+//     }
+// }
 
 fn main() -> Result<(), Box<Error>> {
     let out_dir = PathBuf::from(env::var_os("OUT_DIR").unwrap());
@@ -26,8 +31,8 @@ fn main() -> Result<(), Box<Error>> {
 	if let Some(ref file) = asm_file {
 	    Build::new().file(file).compile("asm");
 	} else {
-		return Result::Err(Box::new(
-			TargetArchError(format!("Unsupported target {}", target).into())));		
+		// return Result::Err(Box::new(
+		// 	TargetArchError(format!("Unsupported target {}", target).into())));		
 	}
 
     println!("cargo:rerun-if-changed=build.rs");
