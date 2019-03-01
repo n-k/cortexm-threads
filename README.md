@@ -14,9 +14,9 @@ Available examples:
  thumbv7em-none-eabi instead of thumbv7em-none-eabihf. See Roadmap#1
  - [microbit](./example_crates/microbit) - 2 threads printing
  messages with co-operative context switching
- - [lm3s6965evb](./example_crates/lm3s6965evb) - (set up to run
+ - [qemu-m4](./example_crates/qemu-m4) - (set up to run
  on qemu) 2 threads printing messages via semi-hosting.
- Run `cargo run` from `example_crates/lm3s6965evb` directory
+ Run `cargo run` from `example_crates/qemu-m4` directory
  to see it running. You must have qemu-system-arm on the system PATH.
 
 ## Roadmap
