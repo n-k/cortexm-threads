@@ -39,7 +39,8 @@ enum ThreadStatus {
 #[derive(Clone, Copy)]
 struct ThreadControlBlock {
     /// current stack pointer of this thread
-    sp: u32,
+    sp: u32, // this must be 1st field of struct, don't reorder
+    priority: u8, // this must be 2nd field of struct, don't reorder
     status: ThreadStatus,
     sleep_ticks: u32,
 }
@@ -53,7 +54,7 @@ static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
     inited: false,
     idx: 0,
     add_idx: 1,
-    threads: [ThreadControlBlock{sp: 0, status: ThreadStatus::Idle, sleep_ticks: 0}; 32],
+    threads: [ThreadControlBlock{sp: 0, status: ThreadStatus::Idle, priority: 0, sleep_ticks: 0}; 32],
 };
 // end GLOBALS
 
@@ -69,7 +70,8 @@ pub extern "C" fn init() -> ! {
                 loop {
                     __CORTEXM_THREADS_wfe();
                 }        
-            });
+            },
+            0xff);
         insert_tcb(0, tcb);
         __CORTEXM_THREADS_GLOBAL.inited = true;
         tick();
@@ -80,6 +82,10 @@ pub extern "C" fn init() -> ! {
 }
 
 pub extern "C" fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8> {
+    create_thread_with_priority(stack, handler_fn, 0xff)
+}
+
+pub extern "C" fn create_thread_with_priority(stack: &mut [u32], handler_fn: fn() -> !, priority: u8) -> Result<(), u8> {
     unsafe {
         __CORTEXM_THREADS_cpsid();
     }
@@ -88,7 +94,7 @@ pub extern "C" fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Res
         if handler.add_idx >= handler.threads.len() {
             return Err(0x01);
         }
-        let tcb = create_tcb(stack, handler_fn);
+        let tcb = create_tcb(stack, handler_fn, priority);
         insert_tcb(handler.add_idx, tcb);
         handler.add_idx = handler.add_idx + 1;
     }
@@ -149,34 +155,26 @@ fn get_next_thread_idx() -> usize {
                 }
             }
         }
-        let start_idx = handler.idx + 1;
-        if start_idx >= handler.add_idx {
-            let start_idx = 1;
-            for i in start_idx..handler.add_idx {
-                if handler.threads[i].status != ThreadStatus::Sleeping {
-                    return i;
-                }
-            }
-            return 0;
+        let it = handler.threads.into_iter().enumerate();
+        let _idle = it.filter(
+            |&(idx, x)| { 
+                idx > 0
+                && idx != handler.idx
+                && idx < handler.add_idx
+                && x.status != ThreadStatus::Sleeping 
+            });
+        let _match = _idle.min_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority));
+        if let Some((idx, _)) = _match {
+            idx
         } else {
-            for i in start_idx..handler.add_idx {
-                if handler.threads[i].status != ThreadStatus::Sleeping {
-                    return i;
-                }
-            }
-            for i in 1..start_idx {
-                if handler.threads[i].status != ThreadStatus::Sleeping {
-                    return i;
-                }
-            }
-            return 0;  
+            0
         }
     } else {
-        return 0;
+        0
     }
 }
 
-fn create_tcb(stack: &mut [u32], handler: fn() -> !) -> ThreadControlBlock {
+fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> ThreadControlBlock {
     let idx = stack.len() - 1;
     stack[idx] = 1 << 24; // xPSR
     stack[idx - 1] = unsafe { core::intrinsics::transmute(handler as *const fn()) }; // PC
@@ -199,6 +197,7 @@ fn create_tcb(stack: &mut [u32], handler: fn() -> !) -> ThreadControlBlock {
         let tcb = ThreadControlBlock {
             sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
             status: ThreadStatus::Idle,
+            priority: priority,
             sleep_ticks: 0,
         };
         tcb
