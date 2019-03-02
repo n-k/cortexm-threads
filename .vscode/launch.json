@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "lm3s6965evb - GDB",
+            "name": "qemu-m4 - GDB",
             "type": "gdb",
             "request": "launch",
-            "cwd": "${workspaceRoot}/example_crates/lm3s6965evb",
-            "target": "${workspaceRoot}/example_crates/lm3s6965evb/target/thumbv7m-none-eabi/debug/lm3s6965evb", 
+            "cwd": "${workspaceRoot}/example_crates/qemu-m4",
+            "target": "${workspaceRoot}/example_crates/qemu-m4/target/thumbv7em-none-eabi/debug/qemu-m4", 
             "gdbpath" : "gdb-multiarch",
             "autorun": [
                 "target remote :3333",

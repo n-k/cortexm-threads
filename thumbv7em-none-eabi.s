@@ -3,6 +3,12 @@
 
 .global __CORTEXM_THREADS_GLOBAL_PTR
 
+.global __CORTEXM_THREADS_wfe
+.thumb_func
+__CORTEXM_THREADS_wfe:
+	wfe
+	bx		lr
+
 .global __CORTEXM_THREADS_cpsid
 .thumb_func
 __CORTEXM_THREADS_cpsid:
