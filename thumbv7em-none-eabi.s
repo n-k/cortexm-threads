@@ -52,11 +52,17 @@ PendSV:
 	str		r2,			[r1, 0x0]	/* set OS.curr = os.next */
 	ldmia	r3!,		{r4-r11}
 	cmp		r0, 		0x0
-	beq		__load_unpriv // FIXME: set CONTROL appropriately
+	beq		__load_unpriv
+	movs	r0,			#0x3
+	msr		control,	r0
+	isb
 	msr 	msp,		r3
 	ldr 	r0,			=0xFFFFFFF9
 	b		__load_end
 	__load_unpriv:
+	movs	r0,			#0x1
+	msr		control,	r0
+	isb
 	msr 	psp,		r3
 	ldr 	r0,			=0xFFFFFFFD
 	__load_end:
