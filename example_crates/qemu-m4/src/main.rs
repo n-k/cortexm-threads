@@ -18,7 +18,7 @@ fn main() -> ! {
 
 	let mut stack1 = [0xDEADBEEF; 512];
     let mut stack2 = [0xDEADBEEF; 512];
-    create_thread(
+    let _ = create_thread(
         &mut stack1, 
         || {
             loop {
@@ -26,7 +26,7 @@ fn main() -> ! {
                 sleep(50);
             }
         });
-    create_thread(
+    let _ = create_thread(
         &mut stack2, 
         || {
             loop {

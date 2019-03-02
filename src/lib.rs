@@ -72,24 +72,29 @@ pub extern "C" fn init() -> ! {
             });
         insert_tcb(0, tcb);
         __CORTEXM_THREADS_GLOBAL.inited = true;
+        tick();
         loop {
             __CORTEXM_THREADS_wfe();
         }
     }
 }
 
-pub extern "C" fn create_thread(stack: &mut [u32], handler: fn() -> !) {
+pub extern "C" fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8> {
     unsafe {
         __CORTEXM_THREADS_cpsid();
     }
     unsafe {
-        let tcb = create_tcb(stack, handler);
         let handler = &mut __CORTEXM_THREADS_GLOBAL;
+        if handler.add_idx >= handler.threads.len() {
+            return Err(0x01);
+        }
+        let tcb = create_tcb(stack, handler_fn);
         insert_tcb(handler.add_idx, tcb);
         handler.add_idx = handler.add_idx + 1;
     }
     unsafe {
         __CORTEXM_THREADS_cpsie();
+        Ok(())
     }
 }
 
@@ -125,6 +130,7 @@ pub extern "C" fn sleep(ticks: u32) {
     if handler.idx > 0 {
         handler.threads[handler.idx].status = ThreadStatus::Sleeping;
         handler.threads[handler.idx].sleep_ticks = ticks;
+        // schedule another thread
         tick();
     }
 }
