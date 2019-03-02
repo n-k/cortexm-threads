@@ -179,7 +179,6 @@ fn get_next_thread_idx() -> usize {
         .filter(
             |&(idx, x)| {
                 idx > 0
-                && idx != handler.idx
                 && idx < handler.add_idx
                 && x.status != ThreadStatus::Sleeping 
         })
