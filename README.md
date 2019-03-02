@@ -23,5 +23,4 @@ Available examples:
  - Implement PendSV handler for thumbv7em-none-eabihf. thumbv7em-none-eabihf
  has more registers for FPU which must be saved/loaded during context switch.
  Switch stm32f3 example to thumbv7em-none-eabihf target after this item.
- - Implement thread priorities, idle thread, efficient sleep
  - Implement some form of IPC

@@ -3,14 +3,12 @@
 use core::ptr;
 
 // functions defined in assembly
-//
 extern "C" {
     fn __CORTEXM_THREADS_cpsid();
     fn __CORTEXM_THREADS_cpsie();
     fn __CORTEXM_THREADS_wfe();
 }
 
-///
 /// Context switching and threads' state
 #[repr(C)]
 struct ThreadsState {
@@ -24,7 +22,6 @@ struct ThreadsState {
     threads: [ThreadControlBlock; 32],
 }
 
-///
 /// Thread status
 #[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -33,7 +30,6 @@ enum ThreadStatus {
     Sleeping,
 }
 
-///
 /// A single thread's state
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -54,14 +50,22 @@ static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
     inited: false,
     idx: 0,
     add_idx: 1,
-    threads: [ThreadControlBlock{sp: 0, status: ThreadStatus::Idle, priority: 0, sleep_ticks: 0}; 32],
+    threads: [
+        ThreadControlBlock{
+            sp: 0,
+            status: ThreadStatus::Idle,
+            priority: 0,
+            sleep_ticks: 0
+        }; 
+        32],
 };
 // end GLOBALS
 
 pub extern "C" fn init() -> ! {
     unsafe {
         __CORTEXM_THREADS_cpsid();
-        __CORTEXM_THREADS_GLOBAL_PTR = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
+        let ptr: usize = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
+        __CORTEXM_THREADS_GLOBAL_PTR = ptr as u32;
         __CORTEXM_THREADS_cpsie();
         let mut idle_stack = [0xDEADBEEF; 64];
         let tcb = create_tcb(
@@ -81,10 +85,12 @@ pub extern "C" fn init() -> ! {
     }
 }
 
+/// Create a thread with default (lowest) priority
 pub extern "C" fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8> {
     create_thread_with_priority(stack, handler_fn, 0xff)
 }
 
+/// Create a thread with explicit priority, higher numeric values mean higher priority
 pub extern "C" fn create_thread_with_priority(stack: &mut [u32], handler_fn: fn() -> !, priority: u8) -> Result<(), u8> {
     unsafe {
         __CORTEXM_THREADS_cpsid();
@@ -104,6 +110,10 @@ pub extern "C" fn create_thread_with_priority(stack: &mut [u32], handler_fn: fn(
     }
 }
 
+/// Handle a tick event:
+///     - updates sleep_ticks field in sleeping threads, decreses by 1
+///     - if a sleeping thread has sleep_ticks == 0, wake it, i.e., change status to idle
+///     - find next thread to schedule
 #[no_mangle]
 pub extern "C" fn tick() {
     unsafe {
@@ -157,13 +167,13 @@ fn get_next_thread_idx() -> usize {
         }
         let it = handler.threads.into_iter().enumerate();
         let _idle = it.filter(
-            |&(idx, x)| { 
+            |&(idx, x)| {
                 idx > 0
                 && idx != handler.idx
                 && idx < handler.add_idx
                 && x.status != ThreadStatus::Sleeping 
             });
-        let _match = _idle.min_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority));
+        let _match = _idle.max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority));
         if let Some((idx, _)) = _match {
             idx
         } else {
@@ -177,7 +187,8 @@ fn get_next_thread_idx() -> usize {
 fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> ThreadControlBlock {
     let idx = stack.len() - 1;
     stack[idx] = 1 << 24; // xPSR
-    stack[idx - 1] = unsafe { core::intrinsics::transmute(handler as *const fn()) }; // PC
+    let pc: usize = unsafe { core::intrinsics::transmute(handler as *const fn()) };
+    stack[idx - 1] = pc as u32; // PC
     stack[idx - 2] = 0xFFFFFFFD; // LR
     stack[idx - 3] = 0xCCCCCCCC; // R12
     stack[idx - 4] = 0x33333333; // R3
@@ -194,11 +205,12 @@ fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> ThreadCont
     stack[idx - 14] = 0x99999999; // R9
     stack[idx - 15] = 0x88888888; // R8
     unsafe {
+        let sp: usize = core::intrinsics::transmute(&stack[stack.len() - 16]);
         let tcb = ThreadControlBlock {
-            sp: core::intrinsics::transmute(&stack[stack.len() - 16]),
-            status: ThreadStatus::Idle,
+            sp: sp as u32,
             priority: priority,
-            sleep_ticks: 0,
+            status: ThreadStatus::Idle,
+            sleep_ticks: 0
         };
         tcb
     }
