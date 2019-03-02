@@ -2,12 +2,8 @@
 
 use core::ptr;
 
-// functions defined in assembly
-extern "C" {
-    fn __CORTEXM_THREADS_cpsid();
-    fn __CORTEXM_THREADS_cpsie();
-    fn __CORTEXM_THREADS_wfe();
-}
+pub static ERR_TOO_MANY_THREADS: u8 = 0x01;
+pub static ERR_STACK_TOO_SMALL: u8 = 0x02;
 
 /// Context switching and threads' state
 #[repr(C)]
@@ -61,6 +57,14 @@ static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
 };
 // end GLOBALS
 
+// functions defined in assembly
+extern "C" {
+    fn __CORTEXM_THREADS_cpsid();
+    fn __CORTEXM_THREADS_cpsie();
+    fn __CORTEXM_THREADS_wfe();
+}
+
+/// Initialize the switcher system
 pub extern "C" fn init() -> ! {
     unsafe {
         __CORTEXM_THREADS_cpsid();
@@ -68,15 +72,14 @@ pub extern "C" fn init() -> ! {
         __CORTEXM_THREADS_GLOBAL_PTR = ptr as u32;
         __CORTEXM_THREADS_cpsie();
         let mut idle_stack = [0xDEADBEEF; 64];
-        let tcb = create_tcb(
-            &mut idle_stack,
-            || {
-                loop {
-                    __CORTEXM_THREADS_wfe();
-                }        
+        match create_tcb(&mut idle_stack, || {loop {__CORTEXM_THREADS_wfe();}}, 0xff) {
+            Ok(tcb) => {
+                insert_tcb(0, tcb);
             },
-            0xff);
-        insert_tcb(0, tcb);
+            _ => {
+                panic!("Could not create idle thread")
+            }
+        }
         __CORTEXM_THREADS_GLOBAL.inited = true;
         tick();
         loop {
@@ -98,13 +101,18 @@ pub extern "C" fn create_thread_with_priority(stack: &mut [u32], handler_fn: fn(
     unsafe {
         let handler = &mut __CORTEXM_THREADS_GLOBAL;
         if handler.add_idx >= handler.threads.len() {
-            return Err(0x01);
+            return Err(ERR_TOO_MANY_THREADS);
         }
-        let tcb = create_tcb(stack, handler_fn, priority);
-        insert_tcb(handler.add_idx, tcb);
-        handler.add_idx = handler.add_idx + 1;
-    }
-    unsafe {
+        match create_tcb(stack, handler_fn, priority) {
+            Ok(tcb) => {
+                insert_tcb(handler.add_idx, tcb);
+                handler.add_idx = handler.add_idx + 1;
+            },
+            Err(e) => {
+                __CORTEXM_THREADS_cpsie();
+                return Err(e);
+            }
+        }
         __CORTEXM_THREADS_cpsie();
         Ok(())
     }
@@ -153,38 +161,38 @@ pub extern "C" fn sleep(ticks: u32) {
 
 fn get_next_thread_idx() -> usize {
     let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
-    if handler.add_idx > 1 {
-        // threads were added
-        // update sleeping threads
-        for i in 1..handler.add_idx {
-            if handler.threads[i].status == ThreadStatus::Sleeping {
-                if handler.threads[i].sleep_ticks > 0 {
-                    handler.threads[i].sleep_ticks = handler.threads[i].sleep_ticks - 1;
-                } else {
-                    handler.threads[i].status = ThreadStatus::Idle;
-                }
+    if handler.add_idx <= 1 {
+        return 0;
+    }
+    // user threads exist
+    // update sleeping threads
+    for i in 1..handler.add_idx {
+        if handler.threads[i].status == ThreadStatus::Sleeping {
+            if handler.threads[i].sleep_ticks > 0 {
+                handler.threads[i].sleep_ticks = handler.threads[i].sleep_ticks - 1;
+            } else {
+                handler.threads[i].status = ThreadStatus::Idle;
             }
         }
-        let it = handler.threads.into_iter().enumerate();
-        let _idle = it.filter(
+    }
+    match handler.threads.into_iter().enumerate()
+        .filter(
             |&(idx, x)| {
                 idx > 0
                 && idx != handler.idx
                 && idx < handler.add_idx
                 && x.status != ThreadStatus::Sleeping 
-            });
-        let _match = _idle.max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority));
-        if let Some((idx, _)) = _match {
-            idx
-        } else {
-            0
+        })
+        .max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority)) {
+            Some((idx, _)) => idx,
+            _ => 0 
         }
-    } else {
-        0
-    }
 }
 
-fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> ThreadControlBlock {
+fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> Result<ThreadControlBlock, u8> {
+    if stack.len() < 32 {
+        return Err(ERR_STACK_TOO_SMALL);
+    }
     let idx = stack.len() - 1;
     stack[idx] = 1 << 24; // xPSR
     let pc: usize = unsafe { core::intrinsics::transmute(handler as *const fn()) };
@@ -212,7 +220,7 @@ fn create_tcb(stack: &mut [u32], handler: fn() -> !, priority: u8) -> ThreadCont
             status: ThreadStatus::Idle,
             sleep_ticks: 0
         };
-        tcb
+        Ok(tcb)
     }
 }
 
