@@ -5,7 +5,7 @@ extern crate panic_semihosting;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::{entry, exception};
 use cortex_m_semihosting::{hprintln};
-use cortexm_threads::{tick, init, create_thread, create_thread_with_priority, sleep};
+use cortexm_threads::{tick, init, create_thread, create_thread_with_config, sleep};
 
 #[entry]
 fn main() -> ! {
@@ -26,7 +26,7 @@ fn main() -> ! {
                 sleep(50);
             }
         });
-    let _ = create_thread_with_priority(
+    let _ = create_thread_with_config(
         &mut stack2, 
         || {
             loop {
@@ -34,7 +34,8 @@ fn main() -> ! {
                 sleep(30);
             }
         },
-        0x01);
+        0x01,
+        true);
     init();
 }
 

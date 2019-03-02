@@ -13,7 +13,8 @@
             "gdbpath" : "gdb-multiarch",
             "autorun": [
                 "target remote :3333",
-                "monitor arm semihosting enable"
+                "monitor arm semihosting enable",
+                "break PendSV"
             ]
         },
         {
