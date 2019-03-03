@@ -11,7 +11,7 @@ Available examples:
  - [stm32f3](./example_crates/stm32f3) - 2 threads with one 
  thread running an LED roulette, and the other periodically
  printing magnetometer readings. Currently compiles for target
- thumbv7em-none-eabi instead of thumbv7em-none-eabihf. See Roadmap#1
+ thumbv7m-none-eabi instead of thumbv7em-none-eabihf. See Roadmap#1
  - [microbit](./example_crates/microbit) - 2 threads printing
  messages with co-operative context switching
  - [qemu-m4](./example_crates/qemu-m4) - (set up to run
@@ -20,7 +20,9 @@ Available examples:
  to see it running. You must have qemu-system-arm on the system PATH.
 
 ## Roadmap
- - Implement PendSV handler for thumbv7em-none-eabihf. thumbv7em-none-eabihf
+ - Implement PendSV handler for thumbv7em-none-eabi and thumbv7em-none-eabihf 
+ (Cortex- M4, M4F)
+ thumbv7em-none-eabihf
  has more registers for FPU which must be saved/loaded during context switch.
  Switch stm32f3 example to thumbv7em-none-eabihf target after this item.
  - Implement some form of IPC

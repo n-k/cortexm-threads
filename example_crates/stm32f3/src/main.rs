@@ -16,7 +16,7 @@ use f3::{
 	Lsm303dlhc,
 };
 
-use cortexm_threads::{tick, init, create_thread};
+use cortexm_threads::{tick, init, create_thread_with_config, sleep};
 
 static mut LEDS: Option<Leds> = None;
 static mut SENSOR: Option<Lsm303dlhc> = None;
@@ -51,13 +51,11 @@ fn main() -> ! {
     syst.enable_counter();
     syst.enable_interrupt();
 
-	let mut stack1 = [0xDEADBEEF; 512];
-    let mut stack2 = [0xDEADBEEF; 512];
-    create_thread(&mut stack1, user_task_1);
-    create_thread(&mut stack2, user_task_2);
+	let mut stack1 = [0xDEADBEEF; 1024];
+    let mut stack2 = [0xDEADBEEF; 1024];
+    let _ = create_thread_with_config(&mut stack1, user_task_1, 0xff, true);
+    let _ = create_thread_with_config(&mut stack2, user_task_2, 0x00, false);
     init();
-
-    loop {}
 }
 
 pub fn user_task_1() -> ! {
@@ -68,9 +66,9 @@ pub fn user_task_1() -> ! {
 				let next = (curr + 1) % 8;
 	
 				leds[next].on();
-				for _i in 1..500 { cortex_m::asm::nop(); }
+				sleep(4);
 				leds[curr].off();
-				for _i in 1..500 { cortex_m::asm::nop(); }
+				sleep(4);
 			}
 		} 
 	}
@@ -82,9 +80,7 @@ pub fn user_task_2() -> ! {
 			let sensor = unsafe { SENSOR.as_mut().unwrap() };
 			let x = sensor.mag();
 			let _ = hprintln!("{:?}", x);
-			for _i in 1..50000 {
-				cortex_m::asm::nop();
-			}
+			sleep(50);
 		}
 	}
 }

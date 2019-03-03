@@ -40,7 +40,7 @@
             "type": "gdb",
             "request": "launch",
             "cwd": "${workspaceRoot}/example_crates/stm32f3",
-            "target": "${workspaceRoot}/example_crates/stm32f3/target/thumbv7em-none-eabihf/debug/stm32f3", 
+            "target": "${workspaceRoot}/example_crates/stm32f3/target/thumbv7m-none-eabi/debug/stm32f3", 
             "gdbpath" : "gdb-multiarch",
             "autorun": [
                 "target remote :3333",
@@ -49,6 +49,7 @@
                 "monitor arm semihosting enable",
                 "load",
                 "break main",
+                "break HardFault",
                 "continue" 
             ]
         }
