@@ -20,6 +20,7 @@ Processor support:
 Features:
  - [x] Preemptive, priority-based switching
  - [x] Efficient sleep
+ - [ ] Accept stack memory area as a vec (arrayvec?, smallvec?) instead of &[]
  - [ ] Non-privileged mode
  - [ ] Mutex implementation aware of thread scheduling
 
@@ -82,3 +83,6 @@ fn main() -> ! {
     init();
 }
 ```
+
+# License
+See [LICENSE.md](LICENSE.md)
