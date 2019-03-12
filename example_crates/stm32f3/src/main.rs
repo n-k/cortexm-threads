@@ -3,7 +3,7 @@
 
 extern crate panic_halt;
 use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m_rt::{entry, exception};
+use cortex_m_rt::{entry};
 use cortex_m_semihosting::{hprintln};
 
 use f3::{
@@ -16,7 +16,7 @@ use f3::{
 	Lsm303dlhc,
 };
 
-use cortexm_threads::{tick, init, create_thread_with_config, sleep};
+use cortexm_threads::{init, create_thread_with_config, sleep};
 
 static mut LEDS: Option<Leds> = None;
 static mut SENSOR: Option<Lsm303dlhc> = None;
@@ -83,9 +83,4 @@ pub fn user_task_2() -> ! {
 			sleep(50);
 		}
 	}
-}
-
-#[exception]
-fn SysTick() {
-    tick();
 }

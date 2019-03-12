@@ -1,3 +1,49 @@
+//!
+//! A simple library for context-switching on ARM Cortex-M ( 0, 0+, 3, 4, 4F ) micro-processors
+//! 
+//! Example:
+//! ```
+//! #![no_std]
+//! #![no_main]
+//! 
+//! extern crate panic_semihosting;
+//! use cortex_m::peripheral::syst::SystClkSource;
+//! use cortex_m_rt::{entry, exception};
+//! use cortex_m_semihosting::{hprintln};
+//! use cortexm_threads::{tick, init, create_thread, create_thread_with_config, sleep};
+//! 
+//! #[entry]
+//! fn main() -> ! {
+//!     let cp = cortex_m::Peripherals::take().unwrap();
+//!     let mut syst = cp.SYST;
+//!     syst.set_clock_source(SystClkSource::Core);
+//!     syst.set_reload(80_000);
+//!     syst.enable_counter();
+//!     syst.enable_interrupt();
+//! 
+//! 	let mut stack1 = [0xDEADBEEF; 512];
+//!     let mut stack2 = [0xDEADBEEF; 512];
+//!     let _ = create_thread(
+//!         &mut stack1, 
+//!         || {
+//!             loop {
+//!                 let _ = hprintln!("in task 1 !!");
+//!                 sleep(50);
+//!             }
+//!         });
+//!     let _ = create_thread_with_config(
+//!         &mut stack2, 
+//!         || {
+//!             loop {
+//!                 let _ = hprintln!("in task 2 !!");
+//!                 sleep(30);
+//!             }
+//!         },
+//!         0x01,
+//!         true);
+//!     init();
+//! }
+//! ```
 #![no_std]
 
 use core::ptr;
@@ -94,7 +140,7 @@ pub fn init() -> ! {
             }
         }
         __CORTEXM_THREADS_GLOBAL.inited = true;
-        tick();
+        SysTick();
         loop {
             __CORTEXM_THREADS_wfe();
         }
@@ -182,55 +228,8 @@ pub fn create_thread_with_config(
 /// * if a sleeping thread has sleep_ticks == 0, wake it, i.e., change status to idle
 /// * find next thread to schedule
 /// * if context switch is required, will pend the PendSV exception, which will do the actual thread switching
-/// # Example
-/// ```
-/// #![no_std]
-/// #![no_main]
-/// 
-/// extern crate panic_semihosting;
-/// use cortex_m::peripheral::syst::SystClkSource;
-/// use cortex_m_rt::{entry, exception};
-/// use cortex_m_semihosting::{hprintln};
-/// use cortexm_threads::{tick, init, create_thread, create_thread_with_config, sleep};
-/// 
-/// #[entry]
-/// fn main() -> ! {
-///     let cp = cortex_m::Peripherals::take().unwrap();
-///     let mut syst = cp.SYST;
-///     syst.set_clock_source(SystClkSource::Core);
-///     syst.set_reload(80_000);
-///     syst.enable_counter();
-///     syst.enable_interrupt();
-/// 
-/// 	let mut stack1 = [0xDEADBEEF; 512];
-///     let mut stack2 = [0xDEADBEEF; 512];
-///     let _ = create_thread(
-///         &mut stack1, 
-///         || {
-///             loop {
-///                 let _ = hprintln!("in task 1 !!");
-///                 sleep(50);
-///             }
-///         });
-///     let _ = create_thread_with_config(
-///         &mut stack2, 
-///         || {
-///             loop {
-///                 let _ = hprintln!("in task 2 !!");
-///                 sleep(30);
-///             }
-///         },
-///         0x01,
-///         true);
-///     init();
-/// }
-/// 
-/// #[exception]
-/// fn SysTick() {
-///     tick();
-/// }
-/// ```
-pub fn tick() {
+#[no_mangle]
+pub extern "C" fn SysTick() {
     unsafe {
         __CORTEXM_THREADS_cpsid();
     }
@@ -283,7 +282,7 @@ pub fn sleep(ticks: u32) {
         handler.threads[handler.idx].status = ThreadStatus::Sleeping;
         handler.threads[handler.idx].sleep_ticks = ticks;
         // schedule another thread
-        tick();
+        SysTick();
     }
 }
 
