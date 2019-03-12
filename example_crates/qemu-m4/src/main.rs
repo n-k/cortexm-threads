@@ -3,9 +3,9 @@
 
 extern crate panic_semihosting;
 use cortex_m::peripheral::syst::SystClkSource;
-use cortex_m_rt::{entry};
-use cortex_m_semihosting::{hprintln};
-use cortexm_threads::{init, create_thread, create_thread_with_config, sleep};
+use cortex_m_rt::entry;
+use cortex_m_semihosting::hprintln;
+use cortexm_threads::{create_thread, create_thread_with_config, init, sleep};
 
 #[entry]
 fn main() -> ! {
@@ -16,25 +16,20 @@ fn main() -> ! {
     syst.enable_counter();
     syst.enable_interrupt();
 
-	let mut stack1 = [0xDEADBEEF; 512];
+    let mut stack1 = [0xDEADBEEF; 512];
     let mut stack2 = [0xDEADBEEF; 512];
-    let _ = create_thread(
-        &mut stack1, 
-        || {
-            loop {
-                let _ = hprintln!("in user task 1 !!");
-                sleep(50);
-            }
-        });
+    let _ = create_thread(&mut stack1, || loop {
+        let _ = hprintln!("in user task 1 !!");
+        sleep(50);
+    });
     let _ = create_thread_with_config(
-        &mut stack2, 
-        || {
-            loop {
-                let _ = hprintln!("in user task 2 !!");
-                sleep(30);
-            }
+        &mut stack2,
+        || loop {
+            let _ = hprintln!("in user task 2 !!");
+            sleep(30);
         },
         0x01,
-        true);
+        true,
+    );
     init();
 }

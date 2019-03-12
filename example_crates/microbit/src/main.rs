@@ -2,12 +2,12 @@
 #![no_std]
 
 extern crate panic_semihosting;
+use cortex_m_rt::entry;
 use cortex_m_semihosting::hprintln;
-use cortex_m_rt::{entry};
-use cortexm_threads::{init, create_thread};
+use cortexm_threads::{create_thread, init};
 
 extern "C" {
-	fn SysTick();
+    fn SysTick();
 }
 
 #[entry]
@@ -33,7 +33,9 @@ pub fn user_task1() -> ! {
         for _i in 1..50000 {
             cortex_m::asm::nop();
         }
-        unsafe {SysTick();}
+        unsafe {
+            SysTick();
+        }
     }
 }
 
@@ -44,6 +46,8 @@ pub fn user_task2() -> ! {
         for _i in 1..50000 {
             cortex_m::asm::nop();
         }
-        unsafe {SysTick();}
+        unsafe {
+            SysTick();
+        }
     }
 }
