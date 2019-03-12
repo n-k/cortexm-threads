@@ -1,24 +1,24 @@
 //!
 //! A simple library for context-switching on ARM Cortex-M ( 0, 0+, 3, 4, 4F ) micro-processors
-//! 
+//!
 //! Supports pre-emptive, priority based switching
-//! 
+//!
 //! This project is meant for learning and should be used only at the user's risk. For practical and mature
 //! rust alternatives, see [Awesome Embedded Rust](https://github.com/rust-embedded/awesome-embedded-rust)
-//! 
+//!
 //! Example:
-//! 
+//!
 //! See [example crate on github](https://github.com/n-k/cortexm-threads/tree/master/example_crates/qemu-m4)
 //! ```
 //! #![no_std]
 //! #![no_main]
-//! 
+//!
 //! extern crate panic_semihosting;
 //! use cortex_m::peripheral::syst::SystClkSource;
 //! use cortex_m_rt::{entry, exception};
 //! use cortex_m_semihosting::{hprintln};
 //! use cortexm_threads::{init, create_thread, create_thread_with_config, sleep};
-//! 
+//!
 //! #[entry]
 //! fn main() -> ! {
 //!     let cp = cortex_m::Peripherals::take().unwrap();
@@ -27,11 +27,11 @@
 //!     syst.set_reload(80_000);
 //!     syst.enable_counter();
 //!     syst.enable_interrupt();
-//! 
+//!
 //! 	let mut stack1 = [0xDEADBEEF; 512];
 //!     let mut stack2 = [0xDEADBEEF; 512];
 //!     let _ = create_thread(
-//!         &mut stack1, 
+//!         &mut stack1,
 //!         || {
 //!             loop {
 //!                 let _ = hprintln!("in task 1 !!");
@@ -39,7 +39,7 @@
 //!             }
 //!         });
 //!     let _ = create_thread_with_config(
-//!         &mut stack2, 
+//!         &mut stack2,
 //!         || {
 //!             loop {
 //!                 let _ = hprintln!("in task 2 !!");
@@ -111,16 +111,13 @@ static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
     inited: false,
     idx: 0,
     add_idx: 1,
-    threads: [
-        ThreadControlBlock{
-            sp: 0,
-            status: ThreadStatus::Idle,
-            priority: 0,
-            privileged: 0,
-            sleep_ticks: 0
-        }; 
-        32
-    ],
+    threads: [ThreadControlBlock {
+        sp: 0,
+        status: ThreadStatus::Idle,
+        priority: 0,
+        privileged: 0,
+        sleep_ticks: 0,
+    }; 32],
 };
 // end GLOBALS
 
@@ -139,13 +136,18 @@ pub fn init() -> ! {
         __CORTEXM_THREADS_GLOBAL_PTR = ptr as u32;
         __CORTEXM_THREADS_cpsie();
         let mut idle_stack = [0xDEADBEEF; 64];
-        match create_tcb(&mut idle_stack, || {loop {__CORTEXM_THREADS_wfe();}}, 0xff, false) {
+        match create_tcb(
+            &mut idle_stack,
+            || loop {
+                __CORTEXM_THREADS_wfe();
+            },
+            0xff,
+            false,
+        ) {
             Ok(tcb) => {
                 insert_tcb(0, tcb);
-            },
-            _ => {
-                panic!("Could not create idle thread")
             }
+            _ => panic!("Could not create idle thread"),
         }
         __CORTEXM_THREADS_GLOBAL.inited = true;
         SysTick();
@@ -156,16 +158,16 @@ pub fn init() -> ! {
 }
 
 /// Create a thread with default configuration (lowest priority, unprivileged).
-/// 
+///
 /// # Arguments
 /// * stack: mut array of u32's to be used as stack area
 /// * handler_fn: function to execute in created thread
-/// 
+///
 /// # Example
 /// ```
 /// let mut stack1 = [0xDEADBEEF; 512];
 /// let _ = create_thread(
-///     &mut stack1, 
+///     &mut stack1,
 ///     || {
 ///         loop {
 ///             let _ = hprintln!("in task 1 !!");
@@ -183,12 +185,12 @@ pub fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8>
 /// * handler_fn: function to execute in created thread
 /// * priority: higher numeric value means higher priority
 /// * privileged: run thread in privileged mode
-/// 
+///
 /// # Example
 /// ```
 /// let mut stack1 = [0xDEADBEEF; 512];
 /// let _ = create_thread_with_config(
-///     &mut stack1, 
+///     &mut stack1,
 ///     || {
 ///         loop {
 ///             let _ = hprintln!("in task 1 !!");
@@ -201,11 +203,11 @@ pub fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8>
 ///```
 /// FIXME: take stack memory as a vec (arrayvec?, smallvec?) instead of &[]
 pub fn create_thread_with_config(
-        stack: &mut [u32], 
-        handler_fn: fn() -> !, 
-        priority: u8,
-        priviliged: bool,
-    ) -> Result<(), u8> {
+    stack: &mut [u32],
+    handler_fn: fn() -> !,
+    priority: u8,
+    priviliged: bool,
+) -> Result<(), u8> {
     unsafe {
         __CORTEXM_THREADS_cpsid();
         let handler = &mut __CORTEXM_THREADS_GLOBAL;
@@ -219,7 +221,7 @@ pub fn create_thread_with_config(
             Ok(tcb) => {
                 insert_tcb(handler.add_idx, tcb);
                 handler.add_idx = handler.add_idx + 1;
-            },
+            }
             Err(e) => {
                 __CORTEXM_THREADS_cpsie();
                 return Err(e);
@@ -230,9 +232,9 @@ pub fn create_thread_with_config(
     }
 }
 
-/// Handle a tick event. Typically, this would be called as SysTick handler, but can be 
+/// Handle a tick event. Typically, this would be called as SysTick handler, but can be
 /// called anytime. Call from thread handler code to yield and switch context.
-/// 
+///
 /// * updates sleep_ticks field in sleeping threads, decreses by 1
 /// * if a sleeping thread has sleep_ticks == 0, wake it, i.e., change status to idle
 /// * find next thread to schedule
@@ -242,7 +244,7 @@ pub extern "C" fn SysTick() {
     unsafe {
         __CORTEXM_THREADS_cpsid();
     }
-    let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
+    let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     if handler.inited {
         if handler.curr == handler.next {
             // schedule a thread to be run
@@ -265,19 +267,19 @@ pub extern "C" fn SysTick() {
 
 /// Get id of current thread
 pub fn get_thread_id() -> usize {
-    let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
+    let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     handler.idx
 }
 
 /// Make current thread sleep for `ticks` ticks. Current thread will be put in `Sleeping`
 /// state and another thread will be scheduled immediately. Current thread will not be considered
 /// for scheduling until `tick()` is called at least `tick` times.
-/// 
+///
 /// # Example
 /// ```
 /// let mut stack1 = [0xDEADBEEF; 512];
 /// let _ = create_thread(
-///     &mut stack1, 
+///     &mut stack1,
 ///     || {
 ///         loop {
 ///             let _ = hprintln!("in task 1 !!");
@@ -286,7 +288,7 @@ pub fn get_thread_id() -> usize {
 ///     });
 /// ```
 pub fn sleep(ticks: u32) {
-    let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
+    let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     if handler.idx > 0 {
         handler.threads[handler.idx].status = ThreadStatus::Sleeping;
         handler.threads[handler.idx].sleep_ticks = ticks;
@@ -296,7 +298,7 @@ pub fn sleep(ticks: u32) {
 }
 
 fn get_next_thread_idx() -> usize {
-    let handler = unsafe {&mut __CORTEXM_THREADS_GLOBAL};
+    let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     if handler.add_idx <= 1 {
         // no user threads, schedule idle thread
         return 0;
@@ -312,25 +314,24 @@ fn get_next_thread_idx() -> usize {
             }
         }
     }
-    match handler.threads.into_iter().enumerate()
-        .filter(
-            |&(idx, x)| {
-                idx > 0
-                && idx < handler.add_idx
-                && x.status != ThreadStatus::Sleeping 
-        })
-        .max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority)) {
-            Some((idx, _)) => idx,
-            _ => 0 
-        }
+    match handler
+        .threads
+        .into_iter()
+        .enumerate()
+        .filter(|&(idx, x)| idx > 0 && idx < handler.add_idx && x.status != ThreadStatus::Sleeping)
+        .max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority))
+    {
+        Some((idx, _)) => idx,
+        _ => 0,
+    }
 }
 
 fn create_tcb(
-        stack: &mut [u32], 
-        handler: fn() -> !, 
-        priority: u8, 
-        priviliged: bool
-    ) -> Result<ThreadControlBlock, u8> {
+    stack: &mut [u32],
+    handler: fn() -> !,
+    priority: u8,
+    priviliged: bool,
+) -> Result<ThreadControlBlock, u8> {
     if stack.len() < 32 {
         return Err(ERR_STACK_TOO_SMALL);
     }
@@ -344,7 +345,7 @@ fn create_tcb(
     stack[idx - 5] = 0x22222222; // R2
     stack[idx - 6] = 0x11111111; // R1
     stack[idx - 7] = 0x00000000; // R0
-    // aditional regs
+                                 // aditional regs
     stack[idx - 08] = 0x77777777; // R7
     stack[idx - 09] = 0x66666666; // R6
     stack[idx - 10] = 0x55555555; // R5
@@ -360,7 +361,7 @@ fn create_tcb(
             priority: priority,
             privileged: if priviliged { 0x1 } else { 0x0 },
             status: ThreadStatus::Idle,
-            sleep_ticks: 0
+            sleep_ticks: 0,
         };
         Ok(tcb)
     }
