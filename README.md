@@ -44,7 +44,6 @@ Sample:
 ```rust
 #![no_std]
 #![no_main]
-
 extern crate panic_semihosting;
 use cortex_m::peripheral::syst::SystClkSource;
 use cortex_m_rt::{entry, exception};
@@ -53,33 +52,32 @@ use cortexm_threads::{init, create_thread, create_thread_with_config, sleep};
 
 #[entry]
 fn main() -> ! {
-    let cp = cortex_m::Peripherals::take().unwrap();
-    let mut syst = cp.SYST;
-    syst.set_clock_source(SystClkSource::Core);
-    syst.set_reload(80_000);
-    syst.enable_counter();
-    syst.enable_interrupt();
-
+	let cp = cortex_m::Peripherals::take().unwrap();
+	let mut syst = cp.SYST;
+	syst.set_clock_source(SystClkSource::Core);
+	syst.set_reload(80_000);
+	syst.enable_counter();
+	syst.enable_interrupt();
 	let mut stack1 = [0xDEADBEEF; 512];
-    let mut stack2 = [0xDEADBEEF; 512];
-    let _ = create_thread(
-        &mut stack1, 
-        || {
-            loop {
-                let _ = hprintln!("in task 1 !!");
-                sleep(50); // sleep for 50 ticks
-            }
-        });
-    let _ = create_thread_with_config(
-        &mut stack2, 
-        || {
-            loop {
-                let _ = hprintln!("in task 2 !!");
-                sleep(30); // sleep for 30 ticks
-            }
-        },
-        0x01, // priority, higher numeric value means higher priority
-        true  // privileged thread
+	let mut stack2 = [0xDEADBEEF; 512];
+	let _ = create_thread(
+		&mut stack1, 
+		|| {
+			loop {
+				let _ = hprintln!("in task 1 !!");
+				sleep(50); // sleep for 50 ticks
+			}
+		});
+	let _ = create_thread_with_config(
+		&mut stack2, 
+		|| {
+			loop {
+				let _ = hprintln!("in task 2 !!");
+				sleep(30); // sleep for 30 ticks
+			}
+		},
+		0x01, // priority, higher numeric value means higher priority
+		true  // privileged thread
 		);
     init();
 }
