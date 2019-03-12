@@ -1,7 +1,14 @@
 //!
 //! A simple library for context-switching on ARM Cortex-M ( 0, 0+, 3, 4, 4F ) micro-processors
 //! 
+//! Supports pre-emptive, priority based switching
+//! 
+//! This project is meant for learning and should be used only at the user's risk. For practical and mature
+//! rust alternatives, see [Awesome Embedded Rust](https://github.com/rust-embedded/awesome-embedded-rust)
+//! 
 //! Example:
+//! 
+//! See [example crate on github](https://github.com/n-k/cortexm-threads/tree/master/example_crates/qemu-m4)
 //! ```
 //! #![no_std]
 //! #![no_main]
@@ -10,7 +17,7 @@
 //! use cortex_m::peripheral::syst::SystClkSource;
 //! use cortex_m_rt::{entry, exception};
 //! use cortex_m_semihosting::{hprintln};
-//! use cortexm_threads::{tick, init, create_thread, create_thread_with_config, sleep};
+//! use cortexm_threads::{init, create_thread, create_thread_with_config, sleep};
 //! 
 //! #[entry]
 //! fn main() -> ! {
@@ -28,7 +35,7 @@
 //!         || {
 //!             loop {
 //!                 let _ = hprintln!("in task 1 !!");
-//!                 sleep(50);
+//!                 sleep(50); // sleep for 50 ticks
 //!             }
 //!         });
 //!     let _ = create_thread_with_config(
@@ -36,11 +43,12 @@
 //!         || {
 //!             loop {
 //!                 let _ = hprintln!("in task 2 !!");
-//!                 sleep(30);
+//!                 sleep(30); // sleep for 30 ticks
 //!             }
 //!         },
-//!         0x01,
-//!         true);
+//!         0x01, // priority, higher numeric value means higher priority
+//!         true  // privileged thread
+//! 		);
 //!     init();
 //! }
 //! ```
@@ -191,6 +199,7 @@ pub fn create_thread(stack: &mut [u32], handler_fn: fn() -> !) -> Result<(), u8>
 ///     true // this thread will be run in privileged mode
 ///     );
 ///```
+/// FIXME: take stack memory as a vec (arrayvec?, smallvec?) instead of &[]
 pub fn create_thread_with_config(
         stack: &mut [u32], 
         handler_fn: fn() -> !, 
@@ -221,8 +230,8 @@ pub fn create_thread_with_config(
     }
 }
 
-/// Handle a tick event. Typically, this would be called from SysTick handler, but can be 
-/// called anytime. Call from thread handler code to co-operatively switch context.
+/// Handle a tick event. Typically, this would be called as SysTick handler, but can be 
+/// called anytime. Call from thread handler code to yield and switch context.
 /// 
 /// * updates sleep_ticks field in sleeping threads, decreses by 1
 /// * if a sleeping thread has sleep_ticks == 0, wake it, i.e., change status to idle
