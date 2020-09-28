@@ -316,7 +316,7 @@ fn get_next_thread_idx() -> usize {
     }
     match handler
         .threads
-        .into_iter()
+        .iter()
         .enumerate()
         .filter(|&(idx, x)| idx > 0 && idx < handler.add_idx && x.status != ThreadStatus::Sleeping)
         .max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority))
