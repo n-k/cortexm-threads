@@ -128,6 +128,18 @@ extern "C" {
     fn __CORTEXM_THREADS_wfe();
 }
 
+pub fn disable_threads() {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+    }
+}
+
+pub fn enable_threads() {
+    unsafe {
+        __CORTEXM_THREADS_cpsie();
+    }
+}
+
 /// Initialize the switcher system
 pub fn init() -> ! {
     unsafe {
