@@ -128,13 +128,27 @@ extern "C" {
     fn __CORTEXM_THREADS_wfe();
 }
 
+#[inline(always)]
+pub fn enable_threads() {
+    unsafe {
+        __CORTEXM_THREADS_cpsie();
+    }
+}
+
+#[inline(always)]
+pub fn disable_threads() {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+    }
+}
+
 /// Initialize the switcher system
 pub fn init() -> ! {
     unsafe {
-        __CORTEXM_THREADS_cpsid();
+        disable_threads();
         let ptr: usize = core::intrinsics::transmute(&__CORTEXM_THREADS_GLOBAL);
         __CORTEXM_THREADS_GLOBAL_PTR = ptr as u32;
-        __CORTEXM_THREADS_cpsie();
+        enable_threads();
         let mut idle_stack = [0xDEADBEEF; 64];
         match create_tcb(
             &mut idle_stack,
@@ -209,7 +223,7 @@ pub fn create_thread_with_config(
     priviliged: bool,
 ) -> Result<(), u8> {
     unsafe {
-        __CORTEXM_THREADS_cpsid();
+        disable_threads();
         let handler = &mut __CORTEXM_THREADS_GLOBAL;
         if handler.add_idx >= handler.threads.len() {
             return Err(ERR_TOO_MANY_THREADS);
@@ -223,11 +237,11 @@ pub fn create_thread_with_config(
                 handler.add_idx = handler.add_idx + 1;
             }
             Err(e) => {
-                __CORTEXM_THREADS_cpsie();
+                enable_threads();
                 return Err(e);
             }
         }
-        __CORTEXM_THREADS_cpsie();
+        enable_threads();
         Ok(())
     }
 }
@@ -241,9 +255,7 @@ pub fn create_thread_with_config(
 /// * if context switch is required, will pend the PendSV exception, which will do the actual thread switching
 #[no_mangle]
 pub extern "C" fn SysTick() {
-    unsafe {
-        __CORTEXM_THREADS_cpsid();
-    }
+    disable_threads();
     let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     if handler.inited {
         if handler.curr == handler.next {
@@ -260,9 +272,7 @@ pub extern "C" fn SysTick() {
             }
         }
     }
-    unsafe {
-        __CORTEXM_THREADS_cpsie();
-    }
+    enable_threads();
 }
 
 /// Get id of current thread
@@ -316,7 +326,7 @@ fn get_next_thread_idx() -> usize {
     }
     match handler
         .threads
-        .into_iter()
+        .iter()
         .enumerate()
         .filter(|&(idx, x)| idx > 0 && idx < handler.add_idx && x.status != ThreadStatus::Sleeping)
         .max_by(|&(_, a), &(_, b)| a.priority.cmp(&b.priority))

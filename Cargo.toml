@@ -1,9 +1,9 @@
 [package]
 name = "cortexm-threads"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["nk"]
 edition = "2018"
-license-file = "LICENSE.md"
+license="MIT"
 description = "A simple library for context-switching on ARM Cortex-M ( 0, 0+, 3, 4, 4F ) micro-processors"
 
 [build-dependencies]
