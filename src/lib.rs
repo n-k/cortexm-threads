@@ -55,6 +55,7 @@
 #![no_std]
 
 use core::ptr;
+use cortex_m::peripheral::DWT;
 
 /// Returned by create_thread or create_thread_with_config as Err(ERR_TOO_MANY_THREADS)
 /// if creating a thread will cause more than 32 threads to exist (inclusing the idle thread)
@@ -78,6 +79,8 @@ struct ThreadsState {
     idx: usize,
     add_idx: usize,
     threads: [ThreadControlBlock; 32],
+    counter: u64,
+    prev_cnt: u32,
 }
 
 /// Thread status
@@ -118,6 +121,8 @@ static mut __CORTEXM_THREADS_GLOBAL: ThreadsState = ThreadsState {
         privileged: 0,
         sleep_ticks: 0,
     }; 32],
+    counter: 0,
+    prev_cnt: 0
 };
 // end GLOBALS
 
@@ -140,6 +145,18 @@ pub fn disable_threads() {
     unsafe {
         __CORTEXM_THREADS_cpsid();
     }
+}
+
+pub fn get_counter() -> u64 {
+    unsafe {
+        __CORTEXM_THREADS_cpsid();
+    }
+    let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
+    let counter = handler.counter.clone();
+    unsafe {
+        __CORTEXM_THREADS_cpsie();
+    }
+    counter
 }
 
 /// Initialize the switcher system
@@ -258,6 +275,13 @@ pub extern "C" fn SysTick() {
     disable_threads();
     let handler = unsafe { &mut __CORTEXM_THREADS_GLOBAL };
     if handler.inited {
+        let cnt = DWT::get_cycle_count();
+        if cnt < handler.prev_cnt {
+            handler.counter = handler.counter + cnt as u64 + (u32::MAX - handler.prev_cnt) as u64;
+        } else {
+            handler.counter = handler.counter + (cnt - handler.prev_cnt) as u64;
+        }
+        handler.prev_cnt = cnt;
         if handler.curr == handler.next {
             // schedule a thread to be run
             handler.idx = get_next_thread_idx();
